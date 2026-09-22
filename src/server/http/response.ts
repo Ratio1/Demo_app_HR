@@ -22,12 +22,17 @@
  * nobody could sign in from a real browser. `same-origin` sends no referrer cross-origin at all
  * (it is *stricter* than the browser default there) while leaving the real `Origin` on our own
  * form posts, and spec §6 S5 asks for a "restrictive Referrer-Policy", not for one exact value.
+ *
+ * There is deliberately **no `Strict-Transport-Security`** (operator decision D10): the
+ * application serves plain HTTP and TLS terminates at Cloudflare, which owns HSTS for the
+ * public name. A header emitted over plain HTTP is ignored by every browser anyway, and one
+ * emitted through the proxy would pin a policy the application does not control. Do not
+ * re-add it here — `tests/unit/auth-primitives.test.ts` asserts its absence.
  */
 export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "same-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-  "Strict-Transport-Security": "max-age=63072000",
 };
 
 export const NO_STORE_HEADERS: Readonly<Record<string, string>> = {

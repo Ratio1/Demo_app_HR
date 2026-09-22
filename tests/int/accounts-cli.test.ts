@@ -140,7 +140,7 @@ describe("bootstrap (spec §4)", () => {
     expect(count.rows[0]?.total).toBe("1");
   }, 30_000);
 
-  it("refuses a weak password or a non-loopback http origin before writing anything", async () => {
+  it("refuses a weak password or a malformed origin before writing anything", async () => {
     await expect(
       bootstrap(ownerPool, {
         email: ADMIN_EMAIL,
@@ -154,7 +154,9 @@ describe("bootstrap (spec §4)", () => {
       bootstrap(ownerPool, {
         email: ADMIN_EMAIL,
         password: ADMIN_PASSWORD,
-        publicOrigin: "http://hr.example.test",
+        // D10 accepts http:// for any host, so the refused shape here is a malformed one:
+        // an origin carrying a path is still not an origin.
+        publicOrigin: "http://hr.example.test/app",
         correlationId: correlation(),
       }),
     ).rejects.toMatchObject({ code: "invalid_origin" });
@@ -199,21 +201,27 @@ describe("set-origin", () => {
     });
   }, 30_000);
 
-  it("stores https and loopback http, and refuses anything else", async () => {
+  it("stores http and https for any host, and refuses anything that is not an origin", async () => {
     expect(await setOrigin(ownerPool, { origin: "http://127.0.0.1:3001", correlationId: correlation() })).toBe(
       "http://127.0.0.1:3001",
     );
     expect(await currentOrigin(ownerPool)).toBe("http://127.0.0.1:3001");
 
-    await expect(
-      setOrigin(ownerPool, { origin: "http://hr.example.test", correlationId: correlation() }),
-    ).rejects.toMatchObject({ code: "invalid_origin" });
+    // D10: plain HTTP ingress — a non-loopback http:// origin is a supported deployment.
+    expect(
+      await setOrigin(ownerPool, { origin: "http://hr.example.test", correlationId: correlation() }),
+    ).toBe("http://hr.example.test");
+    expect(await currentOrigin(ownerPool)).toBe("http://hr.example.test");
+
     await expect(
       setOrigin(ownerPool, { origin: "https://hr.example.test/app", correlationId: correlation() }),
     ).rejects.toMatchObject({ code: "invalid_origin" });
+    await expect(
+      setOrigin(ownerPool, { origin: "ftp://hr.example.test", correlationId: correlation() }),
+    ).rejects.toMatchObject({ code: "invalid_origin" });
 
-    expect(await currentOrigin(ownerPool)).toBe("http://127.0.0.1:3001");
-    expect(await auditFor("settings.set_origin")).toHaveLength(2); // bootstrap + the one change
+    expect(await currentOrigin(ownerPool)).toBe("http://hr.example.test");
+    expect(await auditFor("settings.set_origin")).toHaveLength(3); // bootstrap + the two changes
   });
 });
 

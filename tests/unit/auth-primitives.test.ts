@@ -237,8 +237,14 @@ describe("exact Origin equality (S3)", () => {
     expect(validatePublicOrigin("http://127.0.0.1:3001").value).toBe("http://127.0.0.1:3001");
     expect(validatePublicOrigin("http://localhost:3001").ok).toBe(true);
     expect(validatePublicOrigin("http://[::1]:3001").ok).toBe(true);
-    expect(validatePublicOrigin("http://hr.example.test").ok).toBe(false);
+    // D10: plain HTTP ingress — http:// is accepted for any host, port and all, because TLS
+    // terminates at Cloudflare. Nothing else relaxes: the value is still an exact origin.
+    expect(validatePublicOrigin("http://hr.example.test").value).toBe("http://hr.example.test");
+    expect(validatePublicOrigin("http://hr.example.test:8080/").value).toBe(
+      "http://hr.example.test:8080",
+    );
     expect(validatePublicOrigin("https://hr.example.test/app").ok).toBe(false);
+    expect(validatePublicOrigin("http://hr.example.test/app").ok).toBe(false);
     expect(validatePublicOrigin("https://user:pw@hr.example.test").ok).toBe(false);
     expect(validatePublicOrigin("ftp://hr.example.test").ok).toBe(false);
     expect(validatePublicOrigin("hr.example.test").ok).toBe(false);
@@ -337,7 +343,9 @@ describe("response helper (S5)", () => {
       expect(response.headers.get("Vary")).toBe("Cookie");
       expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
       expect(response.headers.get("Referrer-Policy")).toBe("same-origin");
-      expect(response.headers.get("Strict-Transport-Security")).toBe("max-age=63072000");
+      // D10: no HSTS — the app serves plain HTTP and Cloudflare owns the transport policy.
+      // Absence is the contract, so it is asserted rather than left untested.
+      expect(response.headers.get("Strict-Transport-Security")).toBeNull();
       expect(response.headers.get("Permissions-Policy")).toContain("camera=()");
     }
   });

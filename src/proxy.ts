@@ -103,7 +103,8 @@ function applyResponseHeaders(response: NextResponse, cspHeader: string): void {
   // mutation guard refuses, so no form in this application could be submitted.
   response.headers.set("Referrer-Policy", "same-origin");
   response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-  response.headers.set("Strict-Transport-Security", "max-age=63072000");
+  // No `Strict-Transport-Security` (operator decision D10): plain HTTP ingress, HSTS is
+  // Cloudflare's. See the SECURITY_HEADERS comment in `src/server/http/response.ts`.
   response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
   response.headers.set("Pragma", "no-cache");
   // Appended, not set: the App Router adds its own Vary values and they must survive.

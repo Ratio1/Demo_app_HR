@@ -54,12 +54,13 @@ export function checkOrigin(
 }
 
 /**
- * The rule `manage set-origin` enforces: HTTPS everywhere, with plain HTTP allowed only for
- * the three loopback authorities, so a local demo works without inventing a certificate while
- * a deployed instance cannot be pointed at an http:// origin by accident.
+ * The rule `manage set-origin` enforces: an absolute `scheme://host[:port]`, `http://` or
+ * `https://`, for any host (operator decision D10 — the application speaks plain HTTP and TLS
+ * terminates at Cloudflare, so a non-loopback `http://` origin is a normal deployment, not a
+ * mistake). Nothing else changes: the stored value is still compared byte for byte by
+ * `checkOrigin`, so it must be the origin the *browser* sends — behind a TLS-terminating proxy
+ * that is the proxy's `https://…`, never the container's own scheme.
  */
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
-
 export interface OriginValidation {
   readonly ok: boolean;
   readonly value?: string;
@@ -85,13 +86,7 @@ export function validatePublicOrigin(raw: string): OriginValidation {
     return { ok: true, value: `https://${authority}` };
   }
   if (url.protocol === "http:") {
-    if (!LOOPBACK_HOSTS.has(url.hostname)) {
-      return {
-        ok: false,
-        message: "http:// is allowed only for 127.0.0.1, localhost or [::1]; use https:// otherwise",
-      };
-    }
     return { ok: true, value: `http://${authority}` };
   }
-  return { ok: false, message: "the origin must use https:// (or http:// on loopback)" };
+  return { ok: false, message: "the origin must use http:// or https://" };
 }

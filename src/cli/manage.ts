@@ -171,7 +171,10 @@ const bootstrapCommand: Command = async (args) => {
       const email = (await prompter.ask("Administrator email: ")).trim();
       const password = await askNewPassword(prompter, "Password (15-128 characters)");
       const origin = (
-        await prompter.ask("Public origin (for example https://hr.example.test): ")
+        await prompter.ask(
+          "Public origin as the browser sees it, http:// or https:// " +
+            "(for example https://hr.example.test or http://127.0.0.1:3001): ",
+        )
       ).trim();
       return { email, password, origin };
     });
