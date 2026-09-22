@@ -13,12 +13,21 @@ import { randomUUID } from "node:crypto";
 
 import type { PoolClient } from "../db/pool.ts";
 
-/** The closed action vocabulary of slice 1. Later slices extend it; nothing else is written. */
+/**
+ * The closed action vocabulary. Slice 1 wrote the account, session and settings actions; slice
+ * 2 adds the four employee actions and `leave.cancel`, which the deactivation cascade writes
+ * once per pending request it cancels. Later slices extend the list; nothing else is written.
+ */
 export const AUDIT_ACTIONS = [
   "account.bootstrap",
   "account.create",
   "account.disable",
   "account.reset_password",
+  "employee.activate",
+  "employee.create",
+  "employee.deactivate",
+  "employee.update",
+  "leave.cancel",
   "login",
   "logout",
   "password.change",
@@ -31,7 +40,13 @@ export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 export const AUDIT_OUTCOMES = ["ok", "denied", "error"] as const;
 export type AuditOutcome = (typeof AUDIT_OUTCOMES)[number];
 
-export const AUDIT_OBJECT_TYPES = ["account", "session", "settings"] as const;
+export const AUDIT_OBJECT_TYPES = [
+  "account",
+  "employee",
+  "leave_request",
+  "session",
+  "settings",
+] as const;
 export type AuditObjectType = (typeof AUDIT_OBJECT_TYPES)[number];
 
 export interface AuditEventInput {
