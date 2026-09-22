@@ -26,10 +26,17 @@ import type { HrEmployeeDTO } from "../../src/server/dto/employees.ts";
  * Slice 4 — the DENY suite (slice-4-brief.md, `_agents/projects/HR/design/access-matrix.md`
  * §7.2). Every `it` name carries the `D-###` id and, where the matrix gives one, the `G2-###`
  * test id verbatim, transcribed from §7.2 and interpreted as little as possible: this file
- * proves what the *running application* actually answers, and where that disagrees with the
- * matrix's documented outcome, the assertion is left pointed at the matrix's answer so the run
- * fails loudly and the mismatch is recorded (report's "App defects found") rather than quietly
- * matched to whatever the code happens to do.
+ * proves what the *running application* actually answers.
+ *
+ * Where the running code disagrees with the matrix's documented outcome and no ruling has
+ * settled which side is right (fix round, 2026-09-23), the row carries **two** assertions rather
+ * than one pointed either way: a plain, passing `it` that pins the current code (a regression
+ * guard), and an `it.fails` "matrix ratchet" that keeps the matrix's own expectation in the
+ * suite, visible and loudly self-correcting — Vitest's named expected-failure mechanism reports
+ * it as an ordinary pass while the mismatch stands, and flips it to a reported *failure* the
+ * moment the code and the matrix start agreeing, which is the signal to delete the ratchet and
+ * update the guard. A row this round could resolve outright (a transcription error, not a design
+ * disagreement) is fixed as a single assertion instead — see D-081.
  *
  * Same harness as `tests/int/leave.test.ts`/`employees.test.ts`: Route Handlers driven as plain
  * `(Request, Pool, id?)` functions against `hr_test`, runtime pool for the handlers, owner pool
