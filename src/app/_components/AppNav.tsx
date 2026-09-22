@@ -1,15 +1,25 @@
 import Link from "next/link";
 
-import { ActionLogoutIcon, NavOverviewIcon, NavProfileIcon } from "./icons";
+import {
+  ActionLogoutIcon,
+  NavDirectoryIcon,
+  NavEmployeesIcon,
+  NavOverviewIcon,
+  NavProfileIcon,
+} from "./icons";
 
 /**
  * The authenticated nav shell (tokens.md §5.13), rendered by the pages that hold a session
- * (`/` and `/me`) rather than by the root layout — see layout.tsx's header comment and the
- * slice 1 part C report for why. Slice 1 ships exactly two destinations (Overview, My
- * account); the full role-specific set (`nav-directory.svg`, `nav-employees.svg`,
- * `nav-leave.svg`, `nav-approvals.svg`) and the <1024px collapse-behind-a-toggle behaviour
- * arrive with the routes they point to (slices 2–4) — documented as a deviation, not silently
- * dropped.
+ * (`/`, `/me`, `/directory`, `/employees`) rather than by the root layout — see layout.tsx's
+ * header comment and the slice 1 part C report for why.
+ *
+ * Slice 2 adds Directory (both roles) and Employees (`hr_admin` only) to slice 1's Overview/My
+ * account pair. `nav-leave.svg`/`nav-approvals.svg` and the <1024px collapse-behind-a-toggle
+ * behaviour still arrive with the routes they point to (slices 3–4) — documented as a
+ * deviation, not silently dropped: at 390×844 this nav still wraps onto a second line rather
+ * than collapsing behind `action-menu.svg`, same call slice 1 made, now carried one slice
+ * further because /leave and /approvals (the screens that would make the row genuinely
+ * crowded) are still absent.
  */
 export function AppNav({
   email,
@@ -19,7 +29,7 @@ export function AppNav({
 }: {
   email: string;
   role: "hr_admin" | "employee";
-  current: "overview" | "me";
+  current: "overview" | "me" | "directory" | "employees";
   csrfToken: string;
 }) {
   return (
@@ -37,6 +47,28 @@ export function AppNav({
                 <span>Overview</span>
               </Link>
             </li>
+            <li>
+              <Link
+                href="/directory"
+                className="app-nav__link"
+                aria-current={current === "directory" ? "page" : undefined}
+              >
+                <NavDirectoryIcon />
+                <span>Directory</span>
+              </Link>
+            </li>
+            {role === "hr_admin" ? (
+              <li>
+                <Link
+                  href="/employees"
+                  className="app-nav__link"
+                  aria-current={current === "employees" ? "page" : undefined}
+                >
+                  <NavEmployeesIcon />
+                  <span>Employees</span>
+                </Link>
+              </li>
+            ) : null}
             <li>
               <Link
                 href="/me"
