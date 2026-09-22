@@ -11,7 +11,11 @@
  *   `303 → /login?error=invalid_credentials`  wrong email or password (one generic answer)
  *   `303 → /login?error=invalid_input`     malformed or over-posted body
  *   `403 forbidden`                        missing/`null`/mismatched Origin, or CSRF mismatch
- *   `429 too_many_attempts` + `Retry-After` locked account, or the hashing queue is full
+ *   `429` + `Retry-After`                   locked account, or the hashing queue is full — a
+ *                                           small HTML page, not `{"error":...}`: `LoginForm` is
+ *                                           a plain, script-free form (ruling R-G), so a real
+ *                                           browser navigates straight to this body and never
+ *                                           gets to parse JSON (see `lockedOutPage` below)
  *   `503 db_unavailable`                   unprovisioned or database failure
  *
  * The handler is exported separately from `POST` so the integration tests can drive it with a
@@ -26,11 +30,39 @@ import { CapacityError } from "../../../server/auth/semaphore.ts";
 import { loginForm, parseForm } from "../../../server/http/forms.ts";
 import { guardMutation } from "../../../server/http/guard.ts";
 import { readCookie } from "../../../server/http/request.ts";
-import { problemResponse, rateLimited, seeOther } from "../../../server/http/response.ts";
+import { htmlResponse, problemResponse, seeOther } from "../../../server/http/response.ts";
 import { login } from "../../../server/services/auth.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/**
+ * The `429` a real browser lands on directly (see the file doc comment). Same status and
+ * `Retry-After` contract as `rateLimited` elsewhere in the app; only the body changes, to the
+ * same "Too many attempts. Try again in N seconds." copy `LeaveForm`/`EmployeeForm` already
+ * render for this status when it arrives over `fetch`, so the message is consistent whichever
+ * transport happens to answer it. No stylesheet is linked — this response is not part of the
+ * app shell — but the markup carries no inline script or style either way.
+ */
+function lockedOutPage(retryAfterSeconds: number): Response {
+  const seconds = Math.max(1, Math.ceil(retryAfterSeconds));
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Too many attempts — Demo_App_HR</title>
+  </head>
+  <body>
+    <main>
+      <h1>Too many attempts</h1>
+      <p role="alert">Too many attempts. Try again in ${seconds} second${seconds === 1 ? "" : "s"}.</p>
+      <p><a href="/login">Return to sign in</a></p>
+    </main>
+  </body>
+</html>
+`;
+  return htmlResponse(429, html, { headers: { "Retry-After": String(seconds) } });
+}
 
 export async function handleLogin(request: Request, pool: Pool): Promise<Response> {
   const guard = await guardMutation(pool, request);
@@ -62,7 +94,7 @@ export async function handleLogin(request: Request, pool: Pool): Promise<Respons
     });
 
     if (result.kind === "locked") {
-      return rateLimited(result.retryAfterSeconds);
+      return lockedOutPage(result.retryAfterSeconds);
     }
     if (result.kind === "invalid_credentials") {
       return seeOther("/login?error=invalid_credentials");
@@ -72,7 +104,7 @@ export async function handleLogin(request: Request, pool: Pool): Promise<Respons
     });
   } catch (error) {
     if (error instanceof CapacityError) {
-      return rateLimited(error.retryAfterSeconds);
+      return lockedOutPage(error.retryAfterSeconds);
     }
     return problemResponse(503, "db_unavailable");
   }

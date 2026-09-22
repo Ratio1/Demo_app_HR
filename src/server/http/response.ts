@@ -76,6 +76,23 @@ export function jsonResponse(
 }
 
 /**
+ * A small HTML body, carrying the same security/no-store headers as every other response here.
+ * For the rare refusal a plain, script-free `<form>` (ruling R-G) can land on directly — a real
+ * browser navigating straight to this status code, never through a `fetch` caller that could
+ * parse JSON and render its own banner (slice-4 "App defects found" #5). Used sparingly: a
+ * JS-driven client keeps getting `problemResponse`'s JSON, which it already parses.
+ */
+export function htmlResponse(
+  status: number,
+  html: string,
+  options: ResponseOptions = {},
+): Response {
+  const headers = baseHeaders(options);
+  headers.set("Content-Type", "text/html; charset=utf-8");
+  return new Response(html, { status, headers });
+}
+
+/**
  * A refusal: one machine-readable code, no detail. Used for every 4xx that is not a
  * user-recoverable form error (those redirect back to the form instead).
  */
