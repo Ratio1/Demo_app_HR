@@ -68,4 +68,14 @@ describe("ApprovalDecisionControl markup", () => {
     expect(html).toContain(LEAVE_CONSEQUENCE_COPY.approve);
     expect(html).toContain(LEAVE_CONSEQUENCE_COPY.reject);
   });
+
+  it("names the employee in each button's accessible name and each dialog's title, so a screen reader user can tell rows apart", () => {
+    const html = renderToStaticMarkup(
+      createElement(ApprovalDecisionControl, { request: baseRequest, csrfToken: "tok" }),
+    );
+    expect(html).toContain('aria-label="Approve Grace Hopper&#x27;s request"');
+    expect(html).toContain('aria-label="Reject Grace Hopper&#x27;s request"');
+    expect(html).toContain("Approve Grace Hopper&#x27;s request?");
+    expect(html).toContain("Reject Grace Hopper&#x27;s request?");
+  });
 });

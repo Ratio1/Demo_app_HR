@@ -35,12 +35,14 @@ type ControlState =
 
 const GENERIC_UNAVAILABLE = "We can't reach the database right now. Try again shortly.";
 
-const DIALOG_COPY: Record<
-  LeaveDecision,
-  { title: string; confirmLabel: string; variant: "primary" | "destructive" }
-> = {
-  approve: { title: "Approve this request?", confirmLabel: "Approve", variant: "primary" },
-  reject: { title: "Reject this request?", confirmLabel: "Reject", variant: "destructive" },
+const DIALOG_VARIANT: Record<LeaveDecision, "primary" | "destructive"> = {
+  approve: "primary",
+  reject: "destructive",
+};
+
+const DIALOG_CONFIRM_LABEL: Record<LeaveDecision, string> = {
+  approve: "Approve",
+  reject: "Reject",
 };
 
 export function ApprovalDecisionControl({
@@ -112,17 +114,23 @@ export function ApprovalDecisionControl({
   return (
     <>
       <div className="flex gap-sm">
-        <button type="button" className="btn btn--primary" onClick={() => setPendingAction("approve")}>
+        <button
+          type="button"
+          className="btn btn--primary"
+          onClick={() => setPendingAction("approve")}
+          aria-label={`Approve ${request.employee.full_name}'s request`}
+        >
           <ActionApproveIcon />
-          <span>Approve</span>
+          <span aria-hidden="true">Approve</span>
         </button>
         <button
           type="button"
           className="btn btn--destructive"
           onClick={() => setPendingAction("reject")}
+          aria-label={`Reject ${request.employee.full_name}'s request`}
         >
           <ActionRejectIcon />
-          <span>Reject</span>
+          <span aria-hidden="true">Reject</span>
         </button>
       </div>
 
@@ -131,9 +139,9 @@ export function ApprovalDecisionControl({
           key={action}
           id={`decision-${action}-${request.id}`}
           open={pendingAction === action}
-          title={DIALOG_COPY[action].title}
-          confirmLabel={DIALOG_COPY[action].confirmLabel}
-          variant={DIALOG_COPY[action].variant}
+          title={`${action === "approve" ? "Approve" : "Reject"} ${request.employee.full_name}'s request?`}
+          confirmLabel={DIALOG_CONFIRM_LABEL[action]}
+          variant={DIALOG_VARIANT[action]}
           busy={busy && pendingAction === action}
           onConfirm={() => void handleConfirm(action)}
           onClose={() => setPendingAction(null)}
