@@ -22,6 +22,7 @@ import {
   type AccountRole,
 } from "../repos/accounts.ts";
 import { insertAuditEvent } from "../repos/audit.ts";
+import { linkEmployeeAccount } from "../repos/employees.ts";
 import { revokeAccountSessions } from "../repos/sessions.ts";
 import { getPublicOrigin, setPublicOrigin } from "../repos/settings.ts";
 import { checkPasswordPolicy, hashPassword } from "../auth/password.ts";
@@ -171,9 +172,10 @@ export interface CreateUserResult {
 
 /**
  * Creates one account and, when a code is given, links it to that employee row. An
- * `employee`-role account without a link is refused (spec §2); a code that does not exist or
- * is already linked is refused too, so the at-most-one-employee-per-account rule holds
- * whatever the caller intended.
+ * `employee`-role account without a link is refused (spec §2); a code that does not exist, is
+ * already linked, or belongs to a **deactivated** employee is refused too, so the
+ * at-most-one-employee-per-account rule and the deactivation cascade both hold whatever the
+ * caller intended. Giving a disabled record a fresh login would undo the cascade silently.
  */
 export async function createUser(pool: Pool, input: CreateUserInput): Promise<CreateUserResult> {
   const email = validateEmail(input.email);
@@ -201,21 +203,20 @@ export async function createUser(pool: Pool, input: CreateUserInput): Promise<Cr
     const account = await insertAccount(client, { email, passwordHash, role: input.role });
 
     if (code !== "") {
-      const linked = await client.query(
-        `UPDATE employees SET account_id = $1, updated_at = now(), version = version + 1
-          WHERE code = $2 AND account_id IS NULL`,
-        [account.id, code],
-      );
-      if ((linked.rowCount ?? 0) !== 1) {
-        const present = await client.query<{ one: number }>(
-          "SELECT 1 AS one FROM employees WHERE code = $1",
-          [code],
-        );
+      const outcome = await linkEmployeeAccount(client, code, account.id);
+      if (outcome === "not_found") {
+        throw new ProvisioningError("employee_not_found", "no employee record has that code");
+      }
+      if (outcome === "already_linked") {
         throw new ProvisioningError(
-          present.rowCount === 1 ? "employee_already_linked" : "employee_not_found",
-          present.rowCount === 1
-            ? "that employee record already has a login"
-            : "no employee record has that code",
+          "employee_already_linked",
+          "that employee record already has a login",
+        );
+      }
+      if (outcome === "inactive") {
+        throw new ProvisioningError(
+          "employee_inactive",
+          "that employee record is deactivated: activate it before giving it a login",
         );
       }
     }
