@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { getPool } from "@/server/db/pool";
+import { loadOwnProfile } from "@/server/services/employees";
+
 import { AppNav } from "../_components/AppNav";
+import { Avatar } from "../_components/Avatar";
 import { Banner } from "../_components/Banner";
 import { currentPrincipal } from "../_lib/current-principal";
 import { ChangePasswordForm } from "./ChangePasswordForm";
@@ -11,9 +15,15 @@ export const metadata: Metadata = {
 };
 
 /**
- * S5/S2 — My account (flows.md), slice 1 scope: the change-password section only. The
- * profile section (S5 "My profile": own name/title/department/work email) needs the
- * `employees` link this slice does not query yet and arrives in slice 2, per the brief.
+ * S5/S2 — My account (flows.md). Slice 1 shipped the change-password section only; slice 2
+ * adds the S5 "My profile" section above it (own name/title/department/work email, read-only —
+ * spec §2: "no employment-field editing").
+ *
+ * `loadOwnProfile` (src/server/services/employees.ts) returns `data: null` for an account with
+ * no linked employee row — an unlinked `hr_admin`, spec §2's explicitly legal case, not an
+ * error — rendered here as "No employee record linked", never a `forbidden`/`404` state (the
+ * slice-2 brief: "Unlinked hr_admin at /me → profile section says 'no employee record linked'
+ * (not an error)").
  *
  * `session` capability, any authenticated account, forced-reset or not — this slice does not
  * implement the forced-reset session mode at all (simplified plan, "Defer" list: "S1
@@ -44,12 +54,55 @@ export default async function MePage({
   const params = await searchParams;
   const errorParam = typeof params.error === "string" ? params.error : undefined;
   const succeeded = params.status === "password_changed";
+  const profileResult = await loadOwnProfile(getPool(), principal);
 
   return (
     <>
       <AppNav email={principal.email} role={principal.role} current="me" csrfToken={principal.csrfToken} />
       <main id="main-content" className="mx-auto max-w-md px-md py-2xl">
         <h1 className="mb-lg text-heading-lg font-semibold text-text-primary">My account</h1>
+
+        <section className="mb-2xl">
+          <h2 className="mb-sm text-heading-sm font-semibold text-text-primary">My profile</h2>
+          {profileResult.kind === "unavailable" ? (
+            <Banner state="db-unavailable">
+              We can&rsquo;t reach the database right now. Try again shortly.
+            </Banner>
+          ) : profileResult.kind === "forbidden" ? (
+            // Unreachable (`loadOwnProfile` has no role gate); kept for exhaustiveness.
+            <Banner state="forbidden">You don&rsquo;t have access to this.</Banner>
+          ) : profileResult.data === null ? (
+            <p className="text-body text-text-secondary">No employee record linked.</p>
+          ) : (
+            <div className="card">
+              <div className="mb-md flex items-center gap-sm">
+                <Avatar fullName={profileResult.data.full_name} size={56} />
+                <div>
+                  <p className="text-body font-medium text-text-primary">
+                    {profileResult.data.full_name}
+                  </p>
+                  <p className="text-caption text-text-secondary">{profileResult.data.code}</p>
+                </div>
+              </div>
+              <div className="card__row">
+                <span className="text-text-secondary">Title</span>
+                <span className="card__value">{profileResult.data.title}</span>
+              </div>
+              <div className="card__row">
+                <span className="text-text-secondary">Department</span>
+                <span className="card__value">{profileResult.data.department}</span>
+              </div>
+              <div className="card__row">
+                <span className="text-text-secondary">Work email</span>
+                <span className="card__value">{profileResult.data.work_email}</span>
+              </div>
+              <div className="card__row">
+                <span className="text-text-secondary">Start date</span>
+                <span className="card__value">{profileResult.data.start_date}</span>
+              </div>
+            </div>
+          )}
+        </section>
 
         {succeeded ? (
           <div className="mb-lg" role="status">
