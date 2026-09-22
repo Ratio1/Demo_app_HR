@@ -24,11 +24,16 @@ export const metadata: Metadata = {
  * `headers()` makes this page dynamic on its own (spec §3: no import/build-time DB access,
  * private/dynamic routes) — no separate `connection()` call is needed.
  *
- * Failure surfacing contract (assumed, not yet confirmed with part B — flagged as a concern
- * in the report): a rejected `POST /api/login` redirects back here with `?error=1` (generic
- * invalid-credential failure, `AM-002`) or `?error=throttled` (`429`), and `?email=` carrying
- * the typed address back (never the password) so flows.md's "preserved: the typed email
- * address" rule holds across the redirect with no client script.
+ * Failure surfacing, read from the committed `src/app/api/login/route.ts` (not guessed): a
+ * recoverable failure redirects to `/login?error=invalid_credentials` (wrong email/password,
+ * `AM-002`) or `/login?error=invalid_input` (malformed/over-posted body); both render the same
+ * generic copy per flows.md S1's `valid` row. **`429` and `403` are answered directly by the
+ * route** (a JSON problem body, no redirect at all — see the report's concerns: a plain,
+ * script-free form submission navigates straight to that body, which this page cannot
+ * intercept or restyle). `?email=` is read defensively in case a later change starts sending
+ * the typed address back, but the current route never does — flows.md's "preserved: the typed
+ * email address" rule does not yet hold across this redirect, flagged in the report rather
+ * than silently assumed to work.
  */
 export default async function LoginPage({
   searchParams,
@@ -40,8 +45,7 @@ export default async function LoginPage({
 
   const errorParam = typeof params.error === "string" ? params.error : undefined;
   const emailParam = typeof params.email === "string" ? params.email : "";
-  const throttled = errorParam === "throttled";
-  const failed = errorParam !== undefined;
+  const failed = errorParam === "invalid_credentials" || errorParam === "invalid_input";
 
   return (
     <main id="main-content" className="mx-auto max-w-md px-md py-2xl">
@@ -50,9 +54,7 @@ export default async function LoginPage({
       {failed ? (
         <div className="mb-lg">
           <Banner state="invalid">
-            {throttled
-              ? "Too many attempts. Please wait and try again."
-              : "We could not sign you in. Check the email address and password, then try again."}
+            We could not sign you in. Check the email address and password, then try again.
           </Banner>
         </div>
       ) : null}

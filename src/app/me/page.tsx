@@ -21,11 +21,15 @@ export const metadata: Metadata = {
  * does not yet apply; an ordinary live session is the only precondition. No session →
  * redirect to `/login`.
  *
- * Result surfacing contract (assumed — flagged as a concern in the report, same shape as
- * `/login`'s): `POST /api/password` redirects back here with `?success=1` on success, or
- * `?error=invalid` (policy violation / wrong current password — the vocabulary collapses
- * both into one generic message, `AM-004`) / `?error=forb` (Origin/CSRF guard) /
- * `?error=dbdown` (`503`) on failure.
+ * Result surfacing, read from the committed `src/app/api/password/route.ts` (not guessed):
+ * `POST /api/password` redirects to `/me?status=password_changed` on success, or to one of
+ * `/me?error=weak_password` (S1 policy — length/blocklist), `/me?error=invalid_current_password`
+ * (current password did not verify), `/me?error=password_unchanged` (new password equals the
+ * old one — an outcome this slice's design docs do not name; given a reasonable generic
+ * message here, flagged in the report) or `/me?error=invalid_input` (malformed/over-posted
+ * body) on failure. **A bad Origin/CSRF (`403`) or a full or db-unavailable (`503`/`429`)
+ * answer is returned directly by the route, not a redirect** — same caveat as `/login`: a
+ * plain form submission navigates straight to that JSON body.
  */
 export default async function MePage({
   searchParams,
@@ -39,7 +43,7 @@ export default async function MePage({
 
   const params = await searchParams;
   const errorParam = typeof params.error === "string" ? params.error : undefined;
-  const succeeded = params.success === "1";
+  const succeeded = params.status === "password_changed";
 
   return (
     <>
@@ -55,19 +59,18 @@ export default async function MePage({
 
         {errorParam !== undefined ? (
           <div className="mb-lg">
-            {errorParam === "forb" ? (
-              <Banner state="forbidden">
-                This form could not be submitted. Reload the page and try again.
+            {errorParam === "invalid_current_password" ? (
+              <Banner state="invalid">
+                We could not change your password. Check your current password and try again.
               </Banner>
-            ) : errorParam === "dbdown" ? (
-              <Banner state="db-unavailable">
-                Demo_App_HR is temporarily unavailable. Nothing was saved. Try again in a few
-                minutes.
+            ) : errorParam === "password_unchanged" ? (
+              <Banner state="invalid">
+                Choose a new password that is different from your current one.
               </Banner>
             ) : (
               <Banner state="invalid">
                 Your new password must be 15 to 128 characters and must not be a commonly used
-                password. If you typed your current password wrong, check it and try again.
+                password.
               </Banner>
             )}
           </div>
