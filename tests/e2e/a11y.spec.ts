@@ -124,6 +124,62 @@ interface RouteCheck {
 const ADMIN_ROUTES = ["/", "/directory", "/me", "/employees", "/leave", "/approvals"] as const;
 const EMPLOYEE_ROUTES = ["/", "/directory", "/me", "/employees", "/leave", "/approvals"] as const;
 
+/**
+ * Asserts something route- and role-specific is actually on the page, before the axe scan and
+ * the scroll-width check run below. Without this, `page.goto` followed immediately by
+ * `analyze()` would scan a Suspense fallback, an unexpected redirect or an empty error page just
+ * as cleanly as the real content — all four `src/app/**\/loading.tsx` files render their own
+ * `<main id="main-content">`, so that id alone (already present before this fix) proves nothing.
+ * `getByRole` only matches the accessibility tree, which excludes `display:none` elements, so a
+ * locator scoped to content one viewport hides (the desktop-only `data-table` vs. the
+ * mobile-only `card-list`) resolves to nothing at the other width; every locator below is
+ * therefore chosen to be visible at **both** required viewports (390×844 and 1440×900).
+ */
+async function assertRouteResolved(page: Page, path: string, roleLabel: "anonymous" | "hr_admin" | "employee"): Promise<void> {
+  const forbidden = () => expect(page.getByText("You don’t have access to this.")).toBeVisible();
+  switch (path) {
+    case "/login":
+      await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
+      return;
+    case "/":
+      await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
+      return;
+    case "/directory":
+      await expect(page.getByRole("heading", { level: 1, name: "Directory" })).toBeVisible();
+      return;
+    case "/me":
+      await expect(page.getByRole("heading", { level: 1, name: "My account" })).toBeVisible();
+      return;
+    case "/leave":
+      // Both fixture accounts are linked employees (`el.axe` is an `hr_admin(self)`), so both
+      // render the submit form — the same locator the keyboard test below already waits on.
+      await expect(page.locator("#leave-kind")).toBeVisible();
+      return;
+    case "/employees":
+      if (roleLabel === "employee") {
+        await forbidden();
+      } else {
+        // Not the per-row "Open <name>" link: that one lives only in the desktop table
+        // (`hidden sm:table`) and has no equivalent in the mobile card list. "New employee" sits
+        // outside both and is visible at every width, and only renders for the real list view.
+        await expect(page.getByRole("link", { name: "New employee" })).toBeVisible();
+      }
+      return;
+    case "/approvals":
+      if (roleLabel === "employee") {
+        await forbidden();
+      } else {
+        // `ApprovalDecisionControl` renders once in the desktop table and once in the mobile
+        // card list with the same `aria-label`, so exactly one is ever in the accessibility
+        // tree at a time — safe at both viewports (already relied on by the keyboard test).
+        await expect(page.getByRole("button", { name: "Approve Fi Axe's request" })).toBeVisible();
+      }
+      return;
+    default:
+      throw new Error(`assertRouteResolved: no expectation wired up for ${path}`);
+  }
+}
+
 function checks(): RouteCheck[] {
   const list: RouteCheck[] = [{ path: "/login", email: "" }];
   for (const path of ADMIN_ROUTES) {
@@ -152,6 +208,7 @@ for (const viewport of VIEWPORTS) {
           await loginAs(page, A11Y_EMPLOYEE_EMAIL, await readSecret(secretDir(), A11Y_EMPLOYEE_PASSWORD_FILE));
         }
         await page.goto(route.path);
+        await assertRouteResolved(page, route.path, roleLabel);
 
         const results = await new AxeBuilder({ page }).analyze();
         const bad = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
@@ -182,6 +239,11 @@ test.describe("keyboard", () => {
     await expect(page.locator("#leave-kind")).toBeVisible();
 
     const expectedIds = ["leave-kind", "leave-start-date", "leave-end-date"];
+    // The fixture leaves one pending request behind (see `ensureFixtures`), so both the submit
+    // form's own button and that request's Cancel control are in the tab order and must stay
+    // reachable — a control silently dropping out of the tab order must fail this test, not
+    // pass it because nothing downstream ever looked at what was collected for it.
+    const expectedButtonLabels = ["Submit request", "Cancel"];
     const reached = new Set<string>();
     await page.locator("body").click(); // start from a known place, nothing focused
     for (let i = 0; i < 25; i += 1) {
@@ -200,6 +262,12 @@ test.describe("keyboard", () => {
     }
     for (const id of expectedIds) {
       expect(reached.has(id), `Tab never focused #${id} on /leave (reached: ${[...reached].join(", ")})`).toBe(true);
+    }
+    for (const label of expectedButtonLabels) {
+      expect(
+        reached.has(label),
+        `Tab never focused the "${label}" button on /leave (reached: ${[...reached].join(", ")})`,
+      ).toBe(true);
     }
 
     // Enter submits, from the keyboard, no mouse click. A range overlapping the fixture's own

@@ -332,9 +332,12 @@ test.describe("Slice 4 — denied paths", () => {
     }
 
     // The fifth wrong attempt crosses MAX_FAILED_LOGINS and the server answers `429` directly
-    // (src/app/api/login/route.ts → rateLimited()) rather than a redirect — LoginForm is a
-    // plain, scriptless <form>, so the browser navigates straight to that raw JSON body. There
-    // is no "locked out" message for a real visitor to read; recorded in "App defects found".
+    // (src/app/api/login/route.ts → lockedOutPage()) with a small, real HTML page — LoginForm is
+    // a plain, scriptless <form>, so the browser navigates straight to that document. The fix
+    // (commit e231554, slice-4 "App defects found" #5) ships an <h1>, a `role="alert"` paragraph
+    // naming the retry delay and a link back to `/login`; asserted below rather than only
+    // checked for the absence of raw JSON, so a regression is caught even if some other non-JSON
+    // body were ever substituted.
     await page.locator("#login-email").fill(throwawayEmail);
     await page.locator("#login-password").fill("definitely-the-wrong-password");
     const [response] = await Promise.all([
@@ -342,9 +345,8 @@ test.describe("Slice 4 — denied paths", () => {
       page.getByRole("button", { name: "Sign in" }).click(),
     ]);
     expect(response.status()).toBe(429);
-    const bodyText = await page.locator("body").innerText();
-    const looksLikeRawJson = bodyText.trim().startsWith("{");
-    expect(looksLikeRawJson, `expected a styled lockout message, got: ${bodyText}`).toBe(false);
+    await expect(page.getByRole("heading", { name: "Too many attempts" })).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveText(/Try again in \d+ seconds?\./);
 
     await context.close();
   });
