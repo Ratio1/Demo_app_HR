@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 
 import { getPool } from "@/server/db/pool";
@@ -20,11 +21,18 @@ import { loadPrincipal, SESSION_COOKIE_NAME, type Principal } from "@/server/aut
  * deployment. Verified against a running dev server with no `DB_*` variables set at all: before
  * this guard, `GET /` and `GET /me` both threw `ConfigError` and returned 500; after it, an
  * anonymous request never constructs the pool and redirects cleanly.
+ *
+ * Wrapped in `React.cache`, which memoizes for one server render pass: `/employees` and
+ * `/directory` now resolve the session in their segment layout (so an anonymous caller gets a
+ * real redirect status rather than a streamed one — see `src/app/employees/layout.tsx`) *and*
+ * again in the page, and without this the two would be two `sessions` round-trips per request.
+ * The memo is request-scoped and a session cannot change mid-render, so nothing is cached across
+ * principals or across requests.
  */
-export async function currentPrincipal(): Promise<Principal | null> {
+export const currentPrincipal = cache(async (): Promise<Principal | null> => {
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   if (token === undefined || token === "") {
     return null;
   }
   return loadPrincipal(getPool(), token);
-}
+});
