@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { NavMenuList } from "../../src/app/_components/NavMenuList.js";
+import { NavMenuList, type NavItem } from "../../src/app/_components/NavMenuList.js";
 import { NavLeaveIcon, NavOverviewIcon } from "../../src/app/_components/icons.js";
 
 /**
@@ -12,9 +12,11 @@ import { NavLeaveIcon, NavOverviewIcon } from "../../src/app/_components/icons.j
  * (see the component's own doc comment).
  */
 describe("NavMenuList markup", () => {
-  const items = [
-    { href: "/", label: "Overview", icon: NavOverviewIcon, current: true },
-    { href: "/leave", label: "My leave", icon: NavLeaveIcon, current: false },
+  // `icon` is an element, matching what AppNav passes across the RSC boundary — a component
+  // reference is not serializable there and no longer typechecks (NavMenuList's NavItem doc).
+  const items: NavItem[] = [
+    { href: "/", label: "Overview", icon: createElement(NavOverviewIcon), current: true },
+    { href: "/leave", label: "My leave", icon: createElement(NavLeaveIcon), current: false },
   ];
 
   it("marks only the current entry with aria-current=page", () => {
@@ -32,6 +34,13 @@ describe("NavMenuList markup", () => {
     const controls = html.match(/aria-controls="([^"]+)"/)?.[1];
     expect(controls).toBeTruthy();
     expect(html).toContain(`id="${controls}"`);
+  });
+
+  it("renders each entry's icon element inside its link", () => {
+    const html = renderToStaticMarkup(createElement(NavMenuList, { items }));
+    const linkedIcons = html.match(/<a\b[^>]*class="app-nav__link"[^>]*><svg\b/g) ?? [];
+    expect(linkedIcons).toHaveLength(items.length);
+    expect(html).toContain('aria-hidden="true"');
   });
 
   it("labels the toggle button Menu", () => {

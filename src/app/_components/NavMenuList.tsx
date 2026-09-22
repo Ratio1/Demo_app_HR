@@ -1,14 +1,25 @@
 "use client";
 
-import { useId, useState, type ComponentType, type SVGProps } from "react";
+import { useId, useState, type ReactNode } from "react";
 import Link from "next/link";
 
 import { ActionMenuIcon } from "./icons";
 
+/**
+ * `icon` is a rendered element, never a component reference.
+ *
+ * `AppNav` is a Server Component and this module is `"use client"`, so every prop crosses the
+ * RSC boundary and has to be serializable. A function — `icon: NavOverviewIcon` — is not: React
+ * throws "Functions cannot be passed directly to Client Components" while streaming, which
+ * turns every signed-in route into a 500 or a stranded loading skeleton. That is exactly what
+ * shipped in slice 3 and it passed lint, typecheck and the whole unit suite, because the unit
+ * test called this component directly and never crossed the boundary. `ReactNode` is the guard:
+ * a component reference is no longer assignable, so the same mistake now fails `tsc`.
+ */
 export type NavItem = {
   href: string;
   label: string;
-  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  icon: ReactNode;
   current: boolean;
 };
 
@@ -45,21 +56,18 @@ export function NavMenuList({ items }: { items: readonly NavItem[] }) {
         <span>Menu</span>
       </button>
       <ul id={listId} className="app-nav__list" data-open={open} role="list">
-        {items.map((item) => {
-          const Icon = item.icon;
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className="app-nav__link"
-                aria-current={item.current ? "page" : undefined}
-              >
-                <Icon />
-                <span>{item.label}</span>
-              </Link>
-            </li>
-          );
-        })}
+        {items.map((item) => (
+          <li key={item.href}>
+            <Link
+              href={item.href}
+              className="app-nav__link"
+              aria-current={item.current ? "page" : undefined}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </Link>
+          </li>
+        ))}
       </ul>
     </nav>
   );

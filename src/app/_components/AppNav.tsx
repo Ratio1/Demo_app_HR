@@ -34,12 +34,14 @@ export function AppNav({
   current: "overview" | "me" | "directory" | "employees" | "leave" | "approvals";
   csrfToken: string;
 }) {
+  // `icon` is a rendered element, not a component reference: NavMenuList is a client component
+  // and a function cannot cross the RSC boundary. See NavMenuList's NavItem doc comment.
   const items: NavItem[] = [
-    { href: "/", label: "Overview", icon: NavOverviewIcon, current: current === "overview" },
+    { href: "/", label: "Overview", icon: <NavOverviewIcon />, current: current === "overview" },
     {
       href: "/directory",
       label: "Directory",
-      icon: NavDirectoryIcon,
+      icon: <NavDirectoryIcon />,
       current: current === "directory",
     },
   ];
@@ -47,20 +49,30 @@ export function AppNav({
     items.push({
       href: "/employees",
       label: "Employees",
-      icon: NavEmployeesIcon,
+      icon: <NavEmployeesIcon />,
       current: current === "employees",
     });
   }
-  items.push({ href: "/leave", label: "My leave", icon: NavLeaveIcon, current: current === "leave" });
+  items.push({
+    href: "/leave",
+    label: "My leave",
+    icon: <NavLeaveIcon />,
+    current: current === "leave",
+  });
   if (role === "hr_admin") {
     items.push({
       href: "/approvals",
       label: "Approvals",
-      icon: NavApprovalsIcon,
+      icon: <NavApprovalsIcon />,
       current: current === "approvals",
     });
   }
-  items.push({ href: "/me", label: "My account", icon: NavProfileIcon, current: current === "me" });
+  items.push({
+    href: "/me",
+    label: "My account",
+    icon: <NavProfileIcon />,
+    current: current === "me",
+  });
 
   return (
     <div className="border-b border-divider bg-surface-raised">
