@@ -37,15 +37,18 @@ const ROLE: Record<BannerState, "status" | "alert"> = {
  * The one banner/alert component (tokens.md §5.8). Slice 1 produced `loading`/`invalid`/
  * `forbidden`/`db-unavailable`; slice 2 adds `stale` for the employee editor's `409
  * conflict_stale` banner ("This record changed — reload to see the current values", slice-2
- * brief). The native `autoFocus` attribute below still carries the page-load case (a
- * server-rendered banner present at first paint, before anything else can hold focus) without
- * any client script. It does **not** fire for a banner a client component mounts later — by
- * then the submit button or a field already holds focus, and a browser only auto-focuses a
- * freshly-inserted `autofocus` element when nothing else is focused yet. The effect below
- * re-asserts the same "move focus to the freshly mounted alert" contract for that case (slice-4
- * "App defects found" #6): every caller sets an intermediate "submitting" state before showing a
- * new banner, so the conditional block that renders one always unmounts and remounts between two
- * failures — a real mount each time, never a prop update on a `Banner` already in the tree.
+ * brief). The native `autoFocus` attribute below still carries the page-load case: React's
+ * server renderer emits a real `autofocus=""` HTML attribute, which the browser's own
+ * initial-parse autofocus algorithm honours before hydration runs, without any client script.
+ * It does **not** fire for a banner a client component mounts later — React DOM's client commit
+ * (`commitMount`) only calls `.focus()` for `autoFocus` on `button`/`input`/`select`/`textarea`;
+ * for every other host element, including this `<div>`, a client-side mount's `autoFocus` prop
+ * is inert (confirmed against `commitMount` in `react-dom/cjs/react-dom-client.development.js`).
+ * The effect below re-asserts the same "move focus to the freshly mounted alert" contract for
+ * that case (slice-4 "App defects found" #6): every caller sets an intermediate "submitting"
+ * state before showing a new banner, so the conditional block that renders one always unmounts
+ * and remounts between two failures — a real mount each time, never a prop update on a `Banner`
+ * already in the tree.
  */
 export function Banner({
   state,
