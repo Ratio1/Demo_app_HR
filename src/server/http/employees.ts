@@ -17,56 +17,21 @@
  */
 import type { Pool } from "../db/pool.ts";
 
-import { CSRF_FIELD_NAME, csrfMatches } from "../auth/csrf.ts";
-import { SESSION_COOKIE_NAME, loadPrincipal, type Principal } from "../auth/session.ts";
-import type { BodyFields } from "./forms.ts";
-import { guardFieldMutation } from "./guard.ts";
-import { readCookie } from "./request.ts";
+import { authorizeFieldMutation, type AuthorizedMutation } from "./authorize.ts";
 import { jsonResponse, problemResponse } from "./response.ts";
 import { savedLocation, type EmployeeMutationResult } from "../dto/employees.ts";
 
-export type EmployeeRequest =
-  | {
-      readonly ok: true;
-      readonly principal: Principal;
-      readonly fields: BodyFields;
-      readonly correlationId: string;
-    }
-  | { readonly ok: false; readonly response: Response };
+export type EmployeeRequest = AuthorizedMutation;
 
+/**
+ * Steps 1–4 with `hr_admin` required. Slice 3 moved the steps themselves into
+ * `http/authorize.ts`, which `http/leave.ts` shares; the order and every refusal are unchanged.
+ */
 export async function authorizeEmployeeMutation(
   pool: Pool,
   request: Request,
 ): Promise<EmployeeRequest> {
-  const guard = await guardFieldMutation(pool, request);
-  if (!guard.ok) {
-    return { ok: false, response: guard.response };
-  }
-
-  let principal: Principal | null;
-  try {
-    principal = await loadPrincipal(pool, readCookie(request, SESSION_COOKIE_NAME));
-  } catch {
-    return { ok: false, response: problemResponse(503, "db_unavailable") };
-  }
-  if (principal === null) {
-    return { ok: false, response: problemResponse(401, "unauthenticated") };
-  }
-
-  if (!csrfMatches(guard.context.fields[CSRF_FIELD_NAME], principal.csrfToken)) {
-    return { ok: false, response: problemResponse(403, "forbidden") };
-  }
-
-  if (principal.role !== "hr_admin") {
-    return { ok: false, response: problemResponse(403, "forbidden") };
-  }
-
-  return {
-    ok: true,
-    principal,
-    fields: guard.context.fields,
-    correlationId: guard.context.correlationId,
-  };
+  return authorizeFieldMutation(pool, request, { requireRole: "hr_admin" });
 }
 
 /**

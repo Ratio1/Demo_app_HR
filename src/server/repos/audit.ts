@@ -14,9 +14,18 @@ import { randomUUID } from "node:crypto";
 import type { PoolClient } from "../db/pool.ts";
 
 /**
- * The closed action vocabulary. Slice 1 wrote the account, session and settings actions; slice
- * 2 adds the four employee actions and `leave.cancel`, which the deactivation cascade writes
- * once per pending request it cancels. Later slices extend the list; nothing else is written.
+ * The closed action vocabulary. Slice 1 wrote the account, session and settings actions; slice 2
+ * added the four employee actions and `leave.cancel`, which the deactivation cascade writes once
+ * per pending request it cancels; slice 3 adds `leave.submit`, `leave.approve` and
+ * `leave.reject`, and makes `leave.cancel` the owner's withdrawal as well. Later slices extend
+ * the list; nothing else is written.
+ *
+ * **What is audited.** Every *effective* mutation, with `outcome: 'ok'`, in its own transaction —
+ * and, in slice 3, one extra `denied` row: a refused self-approval (`leave.approve` /
+ * `leave.reject`, outcome `denied`). Spec §2 makes that bar a named control ("never bypass
+ * self-approval"), so an attempt on it is the one refusal worth a receipt. Conflict losers
+ * (`conflict_overlap`, `conflict_not_pending`, `conflict_stale`) write nothing: they roll back,
+ * and a per-attempt row would turn the concurrency tests' "exactly one audit row" into noise.
  */
 export const AUDIT_ACTIONS = [
   "account.bootstrap",
@@ -27,7 +36,10 @@ export const AUDIT_ACTIONS = [
   "employee.create",
   "employee.deactivate",
   "employee.update",
+  "leave.approve",
   "leave.cancel",
+  "leave.reject",
+  "leave.submit",
   "login",
   "logout",
   "password.change",
