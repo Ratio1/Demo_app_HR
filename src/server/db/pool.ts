@@ -16,6 +16,14 @@ import { Pool, types, type PoolClient, type PoolConfig, type QueryResultRow } fr
 
 import { loadDbConfig, type DbConfig } from "../config/env.js";
 
+/**
+ * The driver's types, re-exported so that every other module can name a pool or a client
+ * without importing `pg` itself. The ESLint rule that confines `pg` to `src/server/db/**`
+ * then holds for type positions too, and this file stays the one place the driver is reached
+ * (added in slice 1 part B; additive, no behaviour change).
+ */
+export type { Pool, PoolClient, QueryResultRow } from "pg";
+
 /** PostgreSQL OID of DATE. */
 export const DATE_OID = 1082;
 
