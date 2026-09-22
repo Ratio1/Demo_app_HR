@@ -34,12 +34,17 @@ import type {
 } from "../dto/employees.ts";
 import { OVERVIEW_OWN_LEAVE_LIMIT, toOwnLeave } from "../dto/leave.ts";
 
+/**
+ * The three counts are awaited **one at a time on purpose**. They share one pooled connection,
+ * and `pg` deprecates issuing a second query on a client that is still executing one (it queues
+ * them and warns; `pg@9` will remove the behaviour). Slice 2 read two of them with `Promise.all`
+ * and produced exactly that warning on every overview render — three sequential round-trips on a
+ * `max: 4` pool are cheaper than a pattern that is scheduled for removal.
+ */
 async function hrOverview(client: PoolClient): Promise<HrOverviewDTO> {
-  const [headcount, departments, pendingApprovals] = await Promise.all([
-    countActiveEmployees(client),
-    countActiveByDepartment(client),
-    countPendingLeave(client),
-  ]);
+  const headcount = await countActiveEmployees(client);
+  const departments = await countActiveByDepartment(client);
+  const pendingApprovals = await countPendingLeave(client);
   return { role: "hr_admin", headcount, departments, pendingApprovals };
 }
 
@@ -58,10 +63,8 @@ async function employeeOverview(
       latest_status: null,
     };
   }
-  const [rows, leaveRequests] = await Promise.all([
-    listLeaveForEmployee(client, record.id, OVERVIEW_OWN_LEAVE_LIMIT),
-    countLeaveForEmployee(client, record.id),
-  ]);
+  const rows = await listLeaveForEmployee(client, record.id, OVERVIEW_OWN_LEAVE_LIMIT);
+  const leaveRequests = await countLeaveForEmployee(client, record.id);
   const own_requests = rows.map(toOwnLeave);
   return {
     role: "employee",

@@ -157,11 +157,11 @@ export async function loadApprovals(
   }
   return read(async () =>
     withClient(pool, async (client): Promise<ApprovalsDTO> => {
+      // Awaited one at a time: they share one pooled connection, and `pg` deprecates a second
+      // query on a client that is still executing one.
       const viewerEmployeeId = await findEmployeeIdByAccountId(client, principal.accountId);
-      const [pending, decided] = await Promise.all([
-        listPendingApprovals(client, LEAVE_PAGE_LIMIT),
-        listDecidedApprovals(client, DECIDED_HISTORY_LIMIT),
-      ]);
+      const pending = await listPendingApprovals(client, LEAVE_PAGE_LIMIT);
+      const decided = await listDecidedApprovals(client, DECIDED_HISTORY_LIMIT);
       return {
         pending: pending.map((row) => toApproval(row, viewerEmployeeId)),
         decided: decided.map((row) => toApproval(row, viewerEmployeeId)),

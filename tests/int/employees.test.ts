@@ -707,11 +707,20 @@ describe("the overview figures", () => {
     const { token } = await linkedStaff("O-4");
     const staff = await loadPrincipal(appPool, token);
     const overview = await loadOverview(appPool, staff as Principal);
+    // Slice 3 filled the two placeholders: an employee with no leave still has no totals, but
+    // the shape now carries their own requests and the status of the latest one.
     expect(overview).toEqual({
       kind: "ok",
-      data: { role: "employee", fullName: "Cy Staff", leaveRequests: 0 },
+      data: {
+        role: "employee",
+        fullName: "Cy Staff",
+        leaveRequests: 0,
+        own_requests: [],
+        latest_status: null,
+      },
     });
     expect(JSON.stringify(overview)).not.toContain("headcount");
+    expect(JSON.stringify(overview)).not.toContain("pendingApprovals");
   });
 });
 
