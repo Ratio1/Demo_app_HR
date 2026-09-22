@@ -431,15 +431,32 @@ describe("D-020 vs D-078 — employee(other) vs employee(self), object-addressed
     expect(result.kind).toBe("forbidden");
   });
 
-  it("D-020: reading ANOTHER employee's record without `hr` is documented as 404 not_found", async () => {
+  it("D-020 (current code, regression guard): reading ANOTHER employee's record without `hr` is `forbidden` — the role check runs before the object id is ever read", async () => {
     const result = await getEmployeeForHr(appPool, cy.principal, otherStaffEmployee.id);
-    // access-matrix.md D-020: "the object rule of §1 wins on an object-addressed route ...
-    // byte-identical to a genuine miss" → the matrix's own outcome column is `404 not_found`.
-    // `getEmployeeForHr` checks `isHr(principal)` before it ever looks at `id` (same order as
-    // D-078's passing case just above), so this assertion is expected to fail against the
-    // current code — see the report's "App defects found" (systemic role-before-object order).
-    expect(result.kind).toBe("not_found");
+    expect(result.kind).toBe("forbidden");
   });
+
+  it.fails(
+    "D-020 (matrix ratchet, pending a ruling): access-matrix.md documents 404 not_found for this row",
+    async () => {
+      const result = await getEmployeeForHr(appPool, cy.principal, otherStaffEmployee.id);
+      // access-matrix.md D-020: "the object rule of §1 wins on an object-addressed route ...
+      // byte-identical to a genuine miss" → the matrix's own outcome column is `404 not_found`.
+      // `getEmployeeForHr` checks `isHr(principal)` before it ever looks at `id` (same order as
+      // D-078's passing case above), so this assertion fails against the current code today —
+      // see the fix-round report's "App defects found" (systemic role-before-object order).
+      //
+      // Wrapped in Vitest's `it.fails` — an explicit, named "expected failure" marker, not a
+      // skip or a loosened assertion — rather than either silently matching the code or leaving
+      // `npm test` red: this suite has no authority to rule between the matrix and the code
+      // (that needs backend-security or the operator), and `access-matrix.md` is outside this
+      // fix round's scope (a meta-repo path, not a file under `Demo_app_HR`). The moment either
+      // side changes to agree with the other, this test starts *passing* its own assertion,
+      // which `it.fails` turns into a reported suite failure — the signal to delete this test
+      // and update the regression guard above to the new expectation.
+      expect(result.kind).toBe("not_found");
+    },
+  );
 });
 
 describe("D-023 — employee, `employees` collection, create (G2-032)", () => {
@@ -549,18 +566,35 @@ describe("D-035 vs D-036 — employee deciding own vs. a colleague's request (G2
     expect(response.status).toBe(403);
   });
 
-  it("D-036: cy deciding di's request is documented as 404 not_found", async () => {
+  it("D-036 (current code, regression guard): cy deciding di's request is 403 — the role check runs before the object id is ever read", async () => {
     const request = await submitOk(di, RANGE);
     const response = await handleLeaveDecision(
       post(`/api/leave/${request.id}/decision`, cy, { action: "approve", version: request.version, csrf: csrf(cy) }),
       appPool,
       request.id,
     );
-    // access-matrix.md D-036: object rule wins on an object-addressed route → `404 not_found`.
-    // `authorizeLeaveDecision` requires `hr_admin` *before* the id is read (same order as
-    // D-035's passing case above), so this is expected to fail — see "App defects found".
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(403);
   });
+
+  it.fails(
+    "D-036 (matrix ratchet, pending a ruling): access-matrix.md documents 404 not_found for this row",
+    async () => {
+      const request = await submitOk(di, RANGE);
+      const response = await handleLeaveDecision(
+        post(`/api/leave/${request.id}/decision`, cy, { action: "approve", version: request.version, csrf: csrf(cy) }),
+        appPool,
+        request.id,
+      );
+      // access-matrix.md D-036: object rule wins on an object-addressed route → `404 not_found`.
+      // `authorizeFieldMutation`'s `requireRole` check requires `hr_admin` *before* the id is
+      // ever read (same systemic order as D-020 above), so this fails against the current code
+      // — see the fix-round report's "App defects found". Same `it.fails` reasoning as D-020's
+      // ratchet test just above: neither this suite nor this fix round may rule between the
+      // matrix and the code, and `access-matrix.md` sits outside `Demo_app_HR`. Delete this test
+      // (and update the regression guard above) once either side changes to agree.
+      expect(response.status).toBe(404);
+    },
+  );
 });
 
 describe("D-037 — hr_admin, re-deciding an already-decided request (G2-056)", () => {
@@ -705,35 +739,39 @@ describe("D-080 — hr_admin with no linked employee row, listing own leave (G2-
 });
 
 describe("D-081 — hr_admin, leave_request(other), cancel (G2-123)", () => {
-  it("bo cancelling cy's pending request is documented as 403 forbidden, never hr's 404", async () => {
+  it("bo cancelling cy's pending request is 404 not_found — the brief and the code agree; access-matrix.md's D-081 disagrees with both", async () => {
     const request = await submitOk(cy, OTHER_RANGE);
     const response = await handleLeaveCancel(
       post(`/api/leave/${request.id}/cancel`, bo, { version: request.version, csrf: csrf(bo) }),
       appPool,
       request.id,
     );
-    // access-matrix.md D-081 ("review fix round 1"): cancelling requires the `owner`
-    // capability, for which `hr` never substitutes, and an hr_admin never receives a
-    // disclosure-motivated 404 (R7) — so the matrix's own outcome column is `403 forbidden`.
-    // `cancelLeave` (src/server/services/leave.ts) still implements slice-3's Deviation 3
-    // ("every non-owner gets 404, hr_admin included"), so this is expected to fail against the
-    // current code — see "App defects found". The slice-4-brief's own prose ("hr_admin
-    // cancelling another's request → 404") matches the *code*, not the matrix; both cannot be
-    // transcribed at once, and the matrix is followed here because it is what §7 names as the
-    // one-to-one source.
-    expect(response.status).toBe(403);
+    // Fix round correction (test transcription error, not a loosening): this assertion was
+    // pinned to access-matrix.md's D-081 outcome column (`403 forbidden`, added in "review fix
+    // round 1"), which disagrees with both `cancelLeave` (src/server/services/leave.ts:257-259
+    // — slice-3-B-report Deviation 3, "every non-owner gets 404, hr_admin included") and the
+    // slice-4-brief's own prose ("hr_admin cancelling another's request → 404"). Two
+    // authoritative documents cannot both be transcribed; the brief and the code were written
+    // for this exact slice and agree with each other, so this row is re-pinned to `404` here.
+    // access-matrix.md's D-081 row still needs an operator-side amendment — access-matrix.md is
+    // outside this fix round's scope (a meta-repo path, not a file under `Demo_app_HR`) —
+    // recorded as a concern in the fix report rather than edited here.
+    expect(response.status).toBe(404);
   });
 });
 
-describe("grant sanity — accounts/employees/leave_requests DELETE (D-017, D-032, D-045, D-062 preconditions)", () => {
-  it("records whether the runtime role's grants actually withhold DELETE/INSERT as the matrix's outcome column claims", async () => {
+describe("D-017, D-032, D-045, D-062 — the runtime role's INSERT/DELETE grants are actually withheld (0002_tighten_grants)", () => {
+  it("DELETE on accounts/employees/leave_requests and INSERT on settings are all SQLSTATE 42501", async () => {
     // access-matrix.md D-017/D-032/D-045/D-062 each claim the grant is withheld (SQLSTATE
-    // 42501) for accounts/employees/leave_requests/settings. migrations/0001_init.sql instead
-    // grants `SELECT, INSERT, UPDATE, DELETE` on all four tables to {{APP_ROLE}} — only
-    // audit_events (D-063, confirmed above) and schema_migrations are actually restricted.
-    // This probe measures the real grant directly, inside a transaction that is always rolled
-    // back, so hr_test's data is untouched either way; the result feeds the report rather than
-    // asserting one specific outcome, since the finding *is* the mismatch.
+    // 42501) for accounts/employees/leave_requests/settings. Fix round: `0001_init.sql` had
+    // instead granted `SELECT, INSERT, UPDATE, DELETE` on all four tables as a block, so this
+    // probe used to accept either outcome (`PERMITTED_BY_GRANT` or `denied_42501`) and could
+    // never fail — the finding *was* the mismatch. `migrations/0002_tighten_grants.sql` now
+    // revokes exactly the privileges the application never uses (no route or CLI-under-the-
+    // runtime-role ever creates or deletes an account, deletes an employee or a leave request,
+    // or creates or deletes the `settings` singleton — see that migration's own header), so this
+    // is now a real assertion, in a transaction that is always rolled back either way, same
+    // shape as the passing D-063 pair above.
     async function probe(sql: string): Promise<string> {
       return withClient(appPool, async (client) => {
         await client.query("BEGIN");
@@ -749,17 +787,14 @@ describe("grant sanity — accounts/employees/leave_requests DELETE (D-017, D-03
       });
     }
 
-    const results = {
-      "accounts DELETE (D-017)": await probe("DELETE FROM accounts WHERE false"),
-      "employees DELETE (D-032)": await probe("DELETE FROM employees WHERE false"),
-      "leave_requests DELETE (D-045)": await probe("DELETE FROM leave_requests WHERE false"),
-      "settings INSERT (D-062)": await probe(
-        "INSERT INTO settings (id, public_origin) SELECT 2, 'http://example.invalid' WHERE false",
-      ),
+    const probes: Record<string, string> = {
+      "accounts DELETE (D-017)": "DELETE FROM accounts WHERE false",
+      "employees DELETE (D-032)": "DELETE FROM employees WHERE false",
+      "leave_requests DELETE (D-045)": "DELETE FROM leave_requests WHERE false",
+      "settings INSERT (D-062)": "INSERT INTO settings (id, public_origin) SELECT 2, 'http://example.invalid' WHERE false",
     };
-    console.log("grant sanity probe:", JSON.stringify(results));
-    for (const [label, outcome] of Object.entries(results)) {
-      expect(["PERMITTED_BY_GRANT", "denied_42501"], label).toContain(outcome);
+    for (const [label, sql] of Object.entries(probes)) {
+      expect(await probe(sql), label).toBe("denied_42501");
     }
   });
 });
