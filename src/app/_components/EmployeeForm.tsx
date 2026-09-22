@@ -47,6 +47,7 @@ type SubmitState =
   | { readonly status: "submitting" }
   | { readonly status: "invalid"; readonly fields: FieldErrors; readonly summary?: string }
   | { readonly status: "stale" }
+  | { readonly status: "forbidden"; readonly message: string }
   | { readonly status: "error"; readonly message: string };
 
 function emptyValues(): FormValues {
@@ -112,8 +113,15 @@ export function EmployeeForm({
     if (response.status === 200) {
       const payload = (await response.json().catch(() => null)) as { location?: string } | null;
       if (payload?.location) {
+        // Reset before navigating: `router.push` to the same route with different
+        // searchParams re-renders this component in place rather than remounting it (create
+        // mode does remount, since the editor's position in `<main>` changes), so a stale
+        // "submitting" state would otherwise leave the button reading "Saving…" forever. The
+        // editor also keys this component on `${employee.id}:${employee.version}`, which
+        // remounts it and drops this state entirely once the bumped version arrives — this
+        // reset is the defense for the render(s) in between.
+        setState({ status: "idle" });
         router.push(payload.location);
-        router.refresh();
         return;
       }
       setState({ status: "error", message: GENERIC_UNAVAILABLE });
@@ -138,11 +146,13 @@ export function EmployeeForm({
       return;
     }
     if (response.status === 403) {
-      setState({ status: "error", message: "You don't have access to do that." });
+      setState({ status: "forbidden", message: "You don't have access to do that." });
       return;
     }
     if (response.status === 404) {
-      setState({ status: "error", message: "That employee record could not be found." });
+      // Shares the `forbidden` banner state, matching the app's not-found.tsx: a missing
+      // record and a disclosure-motivated denial read the same, never "db-unavailable".
+      setState({ status: "forbidden", message: "That employee record could not be found." });
       return;
     }
     if (response.status === 409 && payload?.error === "conflict_stale") {
@@ -185,6 +195,11 @@ export function EmployeeForm({
           <Banner state="stale">
             This record changed — reload to see the current values.
           </Banner>
+        </div>
+      ) : null}
+      {state.status === "forbidden" ? (
+        <div className="mb-lg">
+          <Banner state="forbidden">{state.message}</Banner>
         </div>
       ) : null}
       {state.status === "error" ? (

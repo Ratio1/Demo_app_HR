@@ -183,8 +183,22 @@ function EditorView({
           </div>
         </div>
 
-        <EmployeeForm mode="edit" employee={employee} csrfToken={csrfToken} />
-        <EmployeeStatusControl employee={employee} csrfToken={csrfToken} />
+        {/* Keyed on id+version: a successful edit or status change bumps `version` server-side
+            and the client navigates back to this same route, which React would otherwise
+            reconcile in place (same position, same component type) rather than remount — the
+            key forces a fresh instance so local submit/form state can never survive past the
+            server-confirmed record it was submitted against. */}
+        <EmployeeForm
+          key={`form:${employee.id}:${employee.version}`}
+          mode="edit"
+          employee={employee}
+          csrfToken={csrfToken}
+        />
+        <EmployeeStatusControl
+          key={`status:${employee.id}:${employee.version}`}
+          employee={employee}
+          csrfToken={csrfToken}
+        />
       </main>
     </>
   );

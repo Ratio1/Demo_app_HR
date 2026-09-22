@@ -25,6 +25,7 @@ type ControlState =
   | { readonly status: "submitting" }
   | { readonly status: "stale" }
   | { readonly status: "last_admin" }
+  | { readonly status: "forbidden"; readonly message: string }
   | { readonly status: "error"; readonly message: string };
 
 const GENERIC_UNAVAILABLE = "We can't reach the database right now. Try again shortly.";
@@ -64,8 +65,10 @@ export function EmployeeStatusControl({
     if (response.status === 200) {
       const payload = (await response.json().catch(() => null)) as { location?: string } | null;
       if (payload?.location) {
+        // See EmployeeForm.tsx's identical comment: reset before navigating, because a
+        // same-route push re-renders this component in place rather than remounting it.
+        setState({ status: "idle" });
         router.push(payload.location);
-        router.refresh();
         return;
       }
       setState({ status: "error", message: GENERIC_UNAVAILABLE });
@@ -88,7 +91,7 @@ export function EmployeeStatusControl({
       return;
     }
     if (response.status === 403) {
-      setState({ status: "error", message: "You don't have access to do that." });
+      setState({ status: "forbidden", message: "You don't have access to do that." });
       return;
     }
     setState({ status: "error", message: GENERIC_UNAVAILABLE });
@@ -117,6 +120,11 @@ export function EmployeeStatusControl({
           <Banner state="invalid">
             This is the last active HR administrator account, so it cannot be deactivated.
           </Banner>
+        </div>
+      ) : null}
+      {state.status === "forbidden" ? (
+        <div className="mt-sm">
+          <Banner state="forbidden">{state.message}</Banner>
         </div>
       ) : null}
       {state.status === "error" ? (
