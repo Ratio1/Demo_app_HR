@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import type { PoolClient } from "../db/pool.js";
+import type { PoolClient } from "../db/pool.ts";
 
 export const ACCOUNT_ROLES = ["hr_admin", "employee"] as const;
 export type AccountRole = (typeof ACCOUNT_ROLES)[number];

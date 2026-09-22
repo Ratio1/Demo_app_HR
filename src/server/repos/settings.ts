@@ -6,7 +6,7 @@
  * validate the value first (`validatePublicOrigin`). The absence of the row is the
  * "unprovisioned" state: the request guard then has no reference origin and fails closed.
  */
-import type { PoolClient } from "../db/pool.js";
+import type { PoolClient } from "../db/pool.ts";
 
 export interface SettingsRow {
   readonly id: number;

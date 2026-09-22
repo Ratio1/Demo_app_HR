@@ -8,7 +8,7 @@
  * `force-dynamic` keeps `next build` from prerendering it, which would also be a build-time
  * evaluation of a runtime probe.
  */
-import { jsonResponse } from "@/server/http/response";
+import { jsonResponse } from "../../../server/http/response.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

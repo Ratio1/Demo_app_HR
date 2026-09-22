@@ -15,17 +15,17 @@
  *   `401 unauthenticated` / `403 forbidden`    no live session / bad Origin or CSRF
  *   `429 too_many_attempts` + `Retry-After`    the hashing queue is full
  */
-import type { Pool } from "@/server/db/pool";
+import type { Pool } from "../../../server/db/pool.ts";
 
-import { getPool } from "@/server/db/pool";
-import { CSRF_FIELD_NAME, csrfMatches } from "@/server/auth/csrf";
-import { SESSION_COOKIE_NAME, loadPrincipal, sessionCookie } from "@/server/auth/session";
-import { CapacityError } from "@/server/auth/semaphore";
-import { parseForm, passwordForm } from "@/server/http/forms";
-import { guardMutation } from "@/server/http/guard";
-import { readCookie } from "@/server/http/request";
-import { problemResponse, rateLimited, seeOther } from "@/server/http/response";
-import { changePassword } from "@/server/services/auth";
+import { getPool } from "../../../server/db/pool.ts";
+import { CSRF_FIELD_NAME, csrfMatches } from "../../../server/auth/csrf.ts";
+import { SESSION_COOKIE_NAME, loadPrincipal, sessionCookie } from "../../../server/auth/session.ts";
+import { CapacityError } from "../../../server/auth/semaphore.ts";
+import { parseForm, passwordForm } from "../../../server/http/forms.ts";
+import { guardMutation } from "../../../server/http/guard.ts";
+import { readCookie } from "../../../server/http/request.ts";
+import { problemResponse, rateLimited, seeOther } from "../../../server/http/response.ts";
+import { changePassword } from "../../../server/services/auth.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -13,14 +13,14 @@
  * routes need different principals. A database failure anywhere is a sanitized `503`: no
  * SQLSTATE, no statement, no host (S6).
  */
-import type { Pool } from "../db/pool.js";
+import type { Pool } from "../db/pool.ts";
 
-import { withClient } from "../db/pool.js";
-import { checkOrigin } from "../auth/origin.js";
-import { getPublicOrigin } from "../repos/settings.js";
-import { newCorrelationId } from "../repos/audit.js";
-import { readFormBody } from "./request.js";
-import { problemResponse } from "./response.js";
+import { withClient } from "../db/pool.ts";
+import { checkOrigin } from "../auth/origin.ts";
+import { getPublicOrigin } from "../repos/settings.ts";
+import { newCorrelationId } from "../repos/audit.ts";
+import { readFormBody } from "./request.ts";
+import { problemResponse } from "./response.ts";
 
 export interface MutationContext {
   readonly form: URLSearchParams;

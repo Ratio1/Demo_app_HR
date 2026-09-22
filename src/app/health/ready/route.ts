@@ -10,8 +10,8 @@
  * Any failure is `503` with the **same** body shape and no internals: no SQLSTATE, no host, no
  * role, no migration list, no error text (§8, S6).
  */
-import { getPool, withClient } from "@/server/db/pool";
-import { jsonResponse } from "@/server/http/response";
+import { getPool, withClient } from "../../../server/db/pool.ts";
+import { jsonResponse } from "../../../server/http/response.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

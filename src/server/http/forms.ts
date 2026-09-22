@@ -14,8 +14,8 @@
  */
 import { z } from "zod";
 
-import { CSRF_FIELD_NAME } from "../auth/csrf.js";
-import { PASSWORD_MAX_LENGTH } from "../auth/password.js";
+import { CSRF_FIELD_NAME } from "../auth/csrf.ts";
+import { PASSWORD_MAX_LENGTH } from "../auth/password.ts";
 
 /** Long enough for the longest legal password plus NFKC expansion, short enough to bound work. */
 const PASSWORD_FIELD_MAX = PASSWORD_MAX_LENGTH * 4;

@@ -18,8 +18,8 @@ import {
   LOGIN_CSRF_COOKIE_NAME,
   LOGIN_CSRF_HEADER,
   LOGIN_CSRF_MAX_AGE_SECONDS,
-} from "../../shared/cookies.js";
-import { safeEqual } from "./tokens.js";
+} from "../../shared/cookies.ts";
+import { safeEqual } from "./tokens.ts";
 
 export { CSRF_FIELD_NAME, LOGIN_CSRF_COOKIE_NAME, LOGIN_CSRF_HEADER, LOGIN_CSRF_MAX_AGE_SECONDS };
 

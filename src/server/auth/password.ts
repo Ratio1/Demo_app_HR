@@ -23,8 +23,8 @@ import { hash as argon2Hash, verify as argon2Verify, type Algorithm } from "@nod
  */
 const ARGON2ID: Algorithm = 2 as Algorithm;
 
-import { isBlockedPassword } from "./blocklist.js";
-import { argon2Semaphore, type Semaphore } from "./semaphore.js";
+import { isBlockedPassword } from "./blocklist.ts";
+import { argon2Semaphore, type Semaphore } from "./semaphore.ts";
 
 /** Exactly the parameters S1 mandates. Constants, never configuration. */
 export const ARGON2_OPTIONS = {

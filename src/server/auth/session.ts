@@ -20,10 +20,10 @@
  * This module imports nothing from Next.js on purpose - the `manage` CLI compiles the same
  * `src/server/**` tree (ruling O1).
  */
-import type { Pool, PoolClient } from "../db/pool.js";
+import type { Pool, PoolClient } from "../db/pool.ts";
 
-import { withClient } from "../db/pool.js";
-import type { AccountRole } from "../repos/accounts.js";
+import { withClient } from "../db/pool.ts";
+import type { AccountRole } from "../repos/accounts.ts";
 import {
   SESSION_TOUCH_INTERVAL_MS,
   findSessionByTokenHash,
@@ -32,9 +32,9 @@ import {
   revokeAccountSessions,
   touchSession,
   type SessionRow,
-} from "../repos/sessions.js";
-import { SESSION_COOKIE_NAME } from "../../shared/cookies.js";
-import { newToken, sha256Hex } from "./tokens.js";
+} from "../repos/sessions.ts";
+import { SESSION_COOKIE_NAME } from "../../shared/cookies.ts";
+import { newToken, sha256Hex } from "./tokens.ts";
 
 /** Host-only cookie: the `__Host-` prefix forbids `Domain` and demands `Secure` + `Path=/`. */
 export { SESSION_COOKIE_NAME };

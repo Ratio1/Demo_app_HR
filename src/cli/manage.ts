@@ -11,11 +11,11 @@
  * No password is ever accepted as an argument, printed, or logged: they are read from a hidden
  * prompt on an interactive terminal and from nowhere else.
  */
-import { ConfigError, loadDbConfig } from "../server/config/env.js";
-import { deriveAppRole, runMigrations, verifySchema } from "../server/db/migrate.js";
-import { createPool } from "../server/db/pool.js";
-import { ACCOUNT_ROLES, type AccountRole } from "../server/repos/accounts.js";
-import { newCorrelationId } from "../server/repos/audit.js";
+import { ConfigError, loadDbConfig } from "../server/config/env.ts";
+import { deriveAppRole, runMigrations, verifySchema } from "../server/db/migrate.ts";
+import { createPool } from "../server/db/pool.ts";
+import { ACCOUNT_ROLES, type AccountRole } from "../server/repos/accounts.ts";
+import { newCorrelationId } from "../server/repos/audit.ts";
 import {
   ProvisioningError,
   bootstrap,
@@ -24,8 +24,8 @@ import {
   disableUser,
   resetPassword,
   setOrigin,
-} from "../server/services/accounts.js";
-import { PromptError, askNewPassword, createPrompter, type Prompter } from "./prompt.js";
+} from "../server/services/accounts.ts";
+import { PromptError, askNewPassword, createPrompter, type Prompter } from "./prompt.ts";
 
 const EXIT_OK = 0;
 const EXIT_FAILED = 1;

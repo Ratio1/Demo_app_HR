@@ -8,9 +8,9 @@
  */
 import { randomUUID } from "node:crypto";
 
-import type { PoolClient } from "../db/pool.js";
+import type { PoolClient } from "../db/pool.ts";
 
-import type { AccountRole } from "./accounts.js";
+import type { AccountRole } from "./accounts.ts";
 
 /** Idle 30 minutes, absolute 8 hours (S2). Code constants, never configuration. */
 export const SESSION_IDLE_MS = 30 * 60 * 1000;

@@ -10,19 +10,19 @@
  *   `403 forbidden` bad Origin, or a live session whose CSRF token does not match
  *   `503 db_unavailable` unprovisioned or database failure
  */
-import type { Pool } from "@/server/db/pool";
+import type { Pool } from "../../../server/db/pool.ts";
 
-import { getPool } from "@/server/db/pool";
-import { CSRF_FIELD_NAME, csrfMatches } from "@/server/auth/csrf";
+import { getPool } from "../../../server/db/pool.ts";
+import { CSRF_FIELD_NAME, csrfMatches } from "../../../server/auth/csrf.ts";
 import {
   SESSION_COOKIE_NAME,
   clearedSessionCookie,
   loadPrincipal,
-} from "@/server/auth/session";
-import { guardMutation } from "@/server/http/guard";
-import { readCookie } from "@/server/http/request";
-import { problemResponse, seeOther } from "@/server/http/response";
-import { logout } from "@/server/services/auth";
+} from "../../../server/auth/session.ts";
+import { guardMutation } from "../../../server/http/guard.ts";
+import { readCookie } from "../../../server/http/request.ts";
+import { problemResponse, seeOther } from "../../../server/http/response.ts";
+import { logout } from "../../../server/services/auth.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Pool, types, type PoolClient, type PoolConfig, type QueryResultRow } from "pg";
 
-import { loadDbConfig, type DbConfig } from "../config/env.js";
+import { loadDbConfig, type DbConfig } from "../config/env.ts";
 
 /**
  * The driver's types, re-exported so that every other module can name a pool or a client
@@ -50,7 +50,10 @@ export function registeredDateParser(): (value: string) => unknown {
 }
 
 export function readCaCertificate(caPath: string = CA_CERTIFICATE_PATH): string {
-  const absolute = resolve(process.cwd(), caPath);
+  // The bundler cannot know this path statically and would otherwise trace - and ship - the
+  // whole project into the standalone output. The CA is copied into the image by the
+  // Dockerfile, so nothing here needs tracing.
+  const absolute = resolve(/* turbopackIgnore: true */ process.cwd(), caPath);
   try {
     return readFileSync(absolute, "utf8");
   } catch {

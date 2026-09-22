@@ -14,7 +14,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Pool, PoolClient } from "pg";
 
-import { withClient } from "./pool.js";
+import { withClient } from "./pool.ts";
 
 export const MIGRATIONS_DIR = "migrations";
 export const APP_ROLE_PLACEHOLDER = "{{APP_ROLE}}";

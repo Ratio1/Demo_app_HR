@@ -14,9 +14,9 @@
  * Every failure - unknown email, wrong password, inactive account, malformed stored hash -
  * returns the same `invalid_credentials` result after the same Argon2 work (S1).
  */
-import type { Pool } from "../db/pool.js";
+import type { Pool } from "../db/pool.ts";
 
-import { withClient, withTransaction } from "../db/pool.js";
+import { withClient, withTransaction } from "../db/pool.ts";
 import {
   clearFailedLogins,
   findAccountByEmail,
@@ -25,11 +25,11 @@ import {
   recordFailedLogin,
   updatePasswordHash,
   type AccountRole,
-} from "../repos/accounts.js";
-import { insertAuditEvent } from "../repos/audit.js";
-import { revokeAccountSessions, revokeSession } from "../repos/sessions.js";
-import { dummyVerify, hashPassword, verifyPassword, checkPasswordPolicy } from "../auth/password.js";
-import { issueSession, resolvePrincipal, type Principal } from "../auth/session.js";
+} from "../repos/accounts.ts";
+import { insertAuditEvent } from "../repos/audit.ts";
+import { revokeAccountSessions, revokeSession } from "../repos/sessions.ts";
+import { dummyVerify, hashPassword, verifyPassword, checkPasswordPolicy } from "../auth/password.ts";
+import { issueSession, resolvePrincipal, type Principal } from "../auth/session.ts";
 
 export interface LoginInput {
   readonly email: string;

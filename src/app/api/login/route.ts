@@ -17,17 +17,17 @@
  * The handler is exported separately from `POST` so the integration tests can drive it with a
  * plain `Request` and a test pool, with no Next.js request context.
  */
-import type { Pool } from "@/server/db/pool";
+import type { Pool } from "../../../server/db/pool.ts";
 
-import { getPool } from "@/server/db/pool";
-import { CSRF_FIELD_NAME, LOGIN_CSRF_COOKIE_NAME, clearedLoginCsrfCookie, csrfMatches, isWellFormedToken } from "@/server/auth/csrf";
-import { SESSION_COOKIE_NAME, sessionCookie } from "@/server/auth/session";
-import { CapacityError } from "@/server/auth/semaphore";
-import { loginForm, parseForm } from "@/server/http/forms";
-import { guardMutation } from "@/server/http/guard";
-import { readCookie } from "@/server/http/request";
-import { problemResponse, rateLimited, seeOther } from "@/server/http/response";
-import { login } from "@/server/services/auth";
+import { getPool } from "../../../server/db/pool.ts";
+import { CSRF_FIELD_NAME, LOGIN_CSRF_COOKIE_NAME, clearedLoginCsrfCookie, csrfMatches, isWellFormedToken } from "../../../server/auth/csrf.ts";
+import { SESSION_COOKIE_NAME, sessionCookie } from "../../../server/auth/session.ts";
+import { CapacityError } from "../../../server/auth/semaphore.ts";
+import { loginForm, parseForm } from "../../../server/http/forms.ts";
+import { guardMutation } from "../../../server/http/guard.ts";
+import { readCookie } from "../../../server/http/request.ts";
+import { problemResponse, rateLimited, seeOther } from "../../../server/http/response.ts";
+import { login } from "../../../server/services/auth.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

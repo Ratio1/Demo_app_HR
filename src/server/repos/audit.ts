@@ -11,7 +11,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import type { PoolClient } from "../db/pool.js";
+import type { PoolClient } from "../db/pool.ts";
 
 /** The closed action vocabulary of slice 1. Later slices extend it; nothing else is written. */
 export const AUDIT_ACTIONS = [

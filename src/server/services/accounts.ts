@@ -8,9 +8,9 @@
  * The web layer will call these same functions (slice 2's deactivation cascade calls
  * `disableAccount`), which is what keeps the last-active-HR-admin protection in one place.
  */
-import type { Pool } from "../db/pool.js";
+import type { Pool } from "../db/pool.ts";
 
-import { withClient, withTransaction } from "../db/pool.js";
+import { withClient, withTransaction } from "../db/pool.ts";
 import {
   LastAdminError,
   countAccounts,
@@ -20,12 +20,12 @@ import {
   normalizeEmail,
   updatePasswordHash,
   type AccountRole,
-} from "../repos/accounts.js";
-import { insertAuditEvent } from "../repos/audit.js";
-import { revokeAccountSessions } from "../repos/sessions.js";
-import { getPublicOrigin, setPublicOrigin } from "../repos/settings.js";
-import { checkPasswordPolicy, hashPassword } from "../auth/password.js";
-import { validatePublicOrigin } from "../auth/origin.js";
+} from "../repos/accounts.ts";
+import { insertAuditEvent } from "../repos/audit.ts";
+import { revokeAccountSessions } from "../repos/sessions.ts";
+import { getPublicOrigin, setPublicOrigin } from "../repos/settings.ts";
+import { checkPasswordPolicy, hashPassword } from "../auth/password.ts";
+import { validatePublicOrigin } from "../auth/origin.ts";
 
 /** A refusal an operator can act on. The message never contains a password. */
 export class ProvisioningError extends Error {
