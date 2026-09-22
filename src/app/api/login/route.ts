@@ -46,7 +46,11 @@ export async function handleLogin(request: Request, pool: Pool): Promise<Respons
 
   const parsed = parseForm(loginForm, guard.context.form);
   if (!parsed.ok) {
-    return seeOther("/login?error=invalid_input");
+    // An over-posted or duplicated key is refused outright; a field the user can fix sends
+    // them back to the form.
+    return parsed.reason === "unknown_key"
+      ? problemResponse(400, "invalid_input")
+      : seeOther("/login?error=invalid_input");
   }
 
   try {

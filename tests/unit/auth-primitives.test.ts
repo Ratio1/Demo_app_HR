@@ -249,7 +249,7 @@ describe("strict form parsing and the body cap (S4)", () => {
       csrf: "y",
       role: "hr_admin",
     });
-    expect(parseForm(loginForm, overPosted).ok).toBe(false);
+    expect(parseForm(loginForm, overPosted)).toEqual({ ok: false, reason: "unknown_key" });
   });
 
   it("rejects a repeated key rather than taking one of the values", () => {
@@ -258,7 +258,7 @@ describe("strict form parsing and the body cap (S4)", () => {
     polluted.append("email", "b@example.test");
     polluted.append("password", "x");
     polluted.append("csrf", "y");
-    expect(parseForm(loginForm, polluted).ok).toBe(false);
+    expect(parseForm(loginForm, polluted)).toEqual({ ok: false, reason: "unknown_key" });
   });
 
   it("requires every field of the password form and bounds their length", () => {

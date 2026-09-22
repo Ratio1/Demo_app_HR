@@ -321,7 +321,10 @@ describe("POST /api/login", () => {
       ),
       appPool,
     );
-    expect(response.headers.get("Location")).toBe("/login?error=invalid_input");
+    // An over-post is an attack shape, not a typo: a hard 400, not a redirect
+    // (access matrix §2.3, D-007..D-011).
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "invalid_input" });
     expect(sessionCookieValue(response)).toBeUndefined();
   });
 

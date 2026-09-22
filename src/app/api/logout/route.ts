@@ -19,6 +19,7 @@ import {
   clearedSessionCookie,
   loadPrincipal,
 } from "../../../server/auth/session.ts";
+import { logoutForm, parseForm } from "../../../server/http/forms.ts";
 import { guardMutation } from "../../../server/http/guard.ts";
 import { readCookie } from "../../../server/http/request.ts";
 import { problemResponse, seeOther } from "../../../server/http/response.ts";
@@ -48,6 +49,11 @@ export async function handleLogout(request: Request, pool: Pool): Promise<Respon
 
     if (!csrfMatches(guard.context.form.get(CSRF_FIELD_NAME), principal.csrfToken)) {
       return problemResponse(403, "forbidden");
+    }
+
+    // The form carries the token and nothing else; an over-post is refused here too (S4).
+    if (!parseForm(logoutForm, guard.context.form).ok) {
+      return problemResponse(400, "invalid_input");
     }
 
     await logout(pool, { principal, correlationId: guard.context.correlationId });

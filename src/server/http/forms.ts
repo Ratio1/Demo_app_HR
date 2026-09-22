@@ -54,13 +54,25 @@ export function formToObject(form: URLSearchParams): Record<string, string> | nu
   return object;
 }
 
-export type ParsedForm<T> = { readonly ok: true; readonly value: T } | { readonly ok: false };
+/**
+ * `unknown_key` is an over-post or a duplicated field - an attack shape, answered with a hard
+ * `400 invalid_input` (access matrix §2.3, `D-007`…`D-011`). `invalid` is a field the user can
+ * correct, answered by sending them back to the form.
+ */
+export type ParsedForm<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly reason: "unknown_key" | "invalid" };
 
 export function parseForm<T>(schema: z.ZodType<T>, form: URLSearchParams): ParsedForm<T> {
   const object = formToObject(form);
   if (object === null) {
-    return { ok: false };
+    // The same field twice: parameter pollution, not a typo.
+    return { ok: false, reason: "unknown_key" };
   }
   const result = schema.safeParse(object);
-  return result.success ? { ok: true, value: result.data } : { ok: false };
+  if (result.success) {
+    return { ok: true, value: result.data };
+  }
+  const overPosted = result.error.issues.some((issue) => issue.code === "unrecognized_keys");
+  return { ok: false, reason: overPosted ? "unknown_key" : "invalid" };
 }

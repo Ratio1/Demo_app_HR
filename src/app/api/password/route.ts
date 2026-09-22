@@ -48,7 +48,9 @@ export async function handlePasswordChange(request: Request, pool: Pool): Promis
 
     const parsed = parseForm(passwordForm, guard.context.form);
     if (!parsed.ok) {
-      return seeOther("/me?error=invalid_input");
+      return parsed.reason === "unknown_key"
+        ? problemResponse(400, "invalid_input")
+        : seeOther("/me?error=invalid_input");
     }
 
     const result = await changePassword(pool, {
