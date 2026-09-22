@@ -348,9 +348,9 @@ describe("response helper (S5)", () => {
    * "append a request Origin header", step 3.1, then serializes the `Origin` of every non-CORS
    * non-GET request as the literal `null` — so every native form POST in this application
    * (login, logout, change password) arrives at `checkOrigin` as `null_origin` and is refused
-   * with `403`, and nobody can sign in from a browser. Measured in Chromium 1243 against a
-   * throw-away same-origin form: `no-referrer` → `Origin: null`, `same-origin` → the real
-   * origin. Spec §6 S5 requires a "restrictive Referrer-Policy", which `same-origin` is: it
+   * with `403`, and nobody can sign in from a browser. Measured in Chromium 149.0.7827.55
+   * against a throw-away same-origin form: `no-referrer` → `Origin: null`, `same-origin` → the
+   * real origin. Spec §6 S5 requires a "restrictive Referrer-Policy", which `same-origin` is: it
    * sends nothing at all cross-origin.
    */
   it("keeps a Referrer-Policy that still lets a browser send Origin on a form POST", () => {

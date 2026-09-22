@@ -471,9 +471,12 @@
   }
 
   /* `min-width: 0` overrides the `auto` minimum size a flex item gets, without which a long
-     value (a 25-character work email on /me) can neither shrink nor break and pushes the card
-     past a 390px viewport; `overflow-wrap: anywhere` then breaks it rather than letting it
-     overflow its own box. Measured before the fix: documentElement.scrollWidth 449 at 390px. */
+     value can neither shrink nor break and pushes the row past the viewport; `overflow-wrap:
+     anywhere` then breaks it rather than letting it overflow its own box. Measured on /me at
+     390×844 with a 44-character work email: without these two properties the document is 395px
+     wide, with them 390px. An ordinary 25-character address fits either way — the overflow the
+     slice-2 review recorded for one came from `.page-column`'s 16px predecessor, not from here,
+     so do not read this rule as the fix for that. */
   .card__value {
     @apply text-table text-text-primary;
     min-width: 0;
