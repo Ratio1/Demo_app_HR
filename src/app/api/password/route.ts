@@ -13,7 +13,12 @@
  *   `303 → /me?error=password_unchanged`       the new password equals the old one
  *   `303 → /me?error=invalid_input`            malformed or over-posted body
  *   `401 unauthenticated` / `403 forbidden`    no live session / bad Origin or CSRF
- *   `429 too_many_attempts` + `Retry-After`    the hashing queue is full
+ *   `429` + `Retry-After`                      the hashing queue is full — a small HTML page,
+ *                                               not `{"error":...}`: `ChangePasswordForm` is a
+ *                                               plain, script-free form (ruling R-G), same as
+ *                                               `/api/login`'s own lockout page (slice-4 "App
+ *                                               defects found" #5, extended here in the fix
+ *                                               round — see `tooManyAttemptsPage`)
  */
 import type { Pool } from "../../../server/db/pool.ts";
 
@@ -24,7 +29,7 @@ import { CapacityError } from "../../../server/auth/semaphore.ts";
 import { parseForm, passwordForm } from "../../../server/http/forms.ts";
 import { guardMutation } from "../../../server/http/guard.ts";
 import { readCookie } from "../../../server/http/request.ts";
-import { problemResponse, rateLimited, seeOther } from "../../../server/http/response.ts";
+import { problemResponse, seeOther, tooManyAttemptsPage } from "../../../server/http/response.ts";
 import { changePassword } from "../../../server/services/auth.ts";
 
 export const runtime = "nodejs";
@@ -74,7 +79,7 @@ export async function handlePasswordChange(request: Request, pool: Pool): Promis
     }
   } catch (error) {
     if (error instanceof CapacityError) {
-      return rateLimited(error.retryAfterSeconds);
+      return tooManyAttemptsPage(error.retryAfterSeconds, "/me", "Return to your account");
     }
     return problemResponse(503, "db_unavailable");
   }

@@ -30,38 +30,19 @@ import { CapacityError } from "../../../server/auth/semaphore.ts";
 import { loginForm, parseForm } from "../../../server/http/forms.ts";
 import { guardMutation } from "../../../server/http/guard.ts";
 import { readCookie } from "../../../server/http/request.ts";
-import { htmlResponse, problemResponse, seeOther } from "../../../server/http/response.ts";
+import { problemResponse, seeOther, tooManyAttemptsPage } from "../../../server/http/response.ts";
 import { login } from "../../../server/services/auth.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * The `429` a real browser lands on directly (see the file doc comment). Same status and
- * `Retry-After` contract as `rateLimited` elsewhere in the app; only the body changes, to the
- * same "Too many attempts. Try again in N seconds." copy `LeaveForm`/`EmployeeForm` already
- * render for this status when it arrives over `fetch`, so the message is consistent whichever
- * transport happens to answer it. No stylesheet is linked — this response is not part of the
- * app shell — but the markup carries no inline script or style either way.
+ * The `429` a real browser lands on directly (see the file doc comment): `tooManyAttemptsPage`
+ * (`src/server/http/response.ts`), shared with `/api/password`'s own hashing-queue refusal since
+ * the fix round — both routes sit behind a plain, script-free `<form>` (ruling R-G).
  */
 function lockedOutPage(retryAfterSeconds: number): Response {
-  const seconds = Math.max(1, Math.ceil(retryAfterSeconds));
-  const html = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Too many attempts — Demo_App_HR</title>
-  </head>
-  <body>
-    <main>
-      <h1>Too many attempts</h1>
-      <p role="alert">Too many attempts. Try again in ${seconds} second${seconds === 1 ? "" : "s"}.</p>
-      <p><a href="/login">Return to sign in</a></p>
-    </main>
-  </body>
-</html>
-`;
-  return htmlResponse(429, html, { headers: { "Retry-After": String(seconds) } });
+  return tooManyAttemptsPage(retryAfterSeconds, "/login", "Return to sign in");
 }
 
 export async function handleLogin(request: Request, pool: Pool): Promise<Response> {

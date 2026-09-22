@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createPool, withClient, withTransaction, type Pool } from "../../src/server/db/pool.ts";
 import { runMigrations, deriveAppRole } from "../../src/server/db/migrate.ts";
@@ -13,6 +13,7 @@ import { loadPrincipal } from "../../src/server/auth/session.ts";
 import { newToken, sha256Hex } from "../../src/server/auth/tokens.ts";
 import { bootstrap } from "../../src/server/services/accounts.ts";
 import { MAX_FAILED_LOGINS } from "../../src/server/repos/accounts.ts";
+import { argon2Semaphore, CapacityError } from "../../src/server/auth/semaphore.ts";
 
 /**
  * Integration coverage for the three authentication routes, driven as plain
@@ -554,6 +555,35 @@ describe("POST /api/password", () => {
 
     expect(await loadPrincipal(appPool, token)).not.toBeNull();
   }, 60_000);
+
+  it("answers the hashing-queue-full case as a small HTML page, matching /api/login's own lockout contract (fix round)", async () => {
+    // `changePassword` has exactly one direct-429 path: the Argon2 semaphore's `CapacityError`,
+    // thrown from inside `verifyPassword`/`hashPassword` (`src/server/auth/password.ts`) through
+    // the process-wide `argon2Semaphore` singleton. Actually filling the real queue (one active,
+    // eight waiting) would need ten concurrent hashes racing this file's other tests over the
+    // same singleton — flaky and slow for what is purely a response-shaping contract. `run` is
+    // spied on the singleton directly (no module mock, no touching the real hashing path) to
+    // make exactly this one call answer `CapacityError`, exercising `handlePasswordChange`'s own
+    // catch clause precisely as the real queue would.
+    const token = await logIn();
+    const principal = await loadPrincipal(appPool, token);
+    const spy = vi.spyOn(argon2Semaphore, "run").mockRejectedValueOnce(new CapacityError(7));
+    try {
+      const response = await changePasswordRequest(token, principal?.csrfToken ?? "", {
+        current_password: ADMIN_PASSWORD,
+        new_password: NEW_PASSWORD,
+      });
+      expect(response.status).toBe(429);
+      expect(response.headers.get("Retry-After")).toBe("7");
+      expect(response.headers.get("Content-Type")).toMatch(/^text\/html/);
+      const body = await response.text();
+      expect(body).toContain("Too many attempts");
+    } finally {
+      spy.mockRestore();
+    }
+    // The account itself is untouched: the refusal happened before any password was verified.
+    expect(await loadPrincipal(appPool, token)).not.toBeNull();
+  });
 });
 
 describe("health endpoints (spec §8)", () => {

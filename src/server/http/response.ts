@@ -121,3 +121,40 @@ export function rateLimited(retryAfterSeconds: number, options: ResponseOptions 
     headers: { ...(options.headers ?? {}), "Retry-After": String(Math.max(1, Math.ceil(retryAfterSeconds))) },
   });
 }
+
+/**
+ * The `429` a real browser can land on directly, for the one or two routes behind a plain,
+ * script-free `<form>` (ruling R-G) — `LoginForm` and `ChangePasswordForm` are both such forms,
+ * so a browser submitting either one straight into a hashing-queue refusal or a login lockout
+ * navigates to this response's body itself, never through a `fetch` caller that could parse
+ * `rateLimited`'s JSON and render its own banner (slice-4 "App defects found" #5, extended to
+ * `/api/password` in the fix round). Same status and `Retry-After` contract as `rateLimited`;
+ * only the body changes, to the same "Too many attempts. Try again in N seconds." copy
+ * `LeaveForm`/`EmployeeForm` already render for this status over `fetch`, so the message is
+ * consistent wherever a plain form happens to land on it. `returnHref`/`returnLabel` name the
+ * one link back to a page the caller can actually use next — `/login` for the login route,
+ * `/me` for the password route, since a locked-out visitor there is already signed in.
+ */
+export function tooManyAttemptsPage(
+  retryAfterSeconds: number,
+  returnHref: string,
+  returnLabel: string,
+): Response {
+  const seconds = Math.max(1, Math.ceil(retryAfterSeconds));
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Too many attempts — Demo_App_HR</title>
+  </head>
+  <body>
+    <main>
+      <h1>Too many attempts</h1>
+      <p role="alert">Too many attempts. Try again in ${seconds} second${seconds === 1 ? "" : "s"}.</p>
+      <p><a href="${returnHref}">${returnLabel}</a></p>
+    </main>
+  </body>
+</html>
+`;
+  return htmlResponse(429, html, { headers: { "Retry-After": String(seconds) } });
+}
