@@ -5,15 +5,20 @@ import {
   StateForbiddenIcon,
   StateInvalidIcon,
   StateLoadingIcon,
+  StateStaleIcon,
 } from "./icons";
 
-export type BannerState = "loading" | "invalid" | "forbidden" | "db-unavailable";
+// Slice 2 adds `stale` (tokens.md §5.8: the S6/S7 "record changed" conflict banner). `empty`
+// and `no-results` are rendered by the dedicated EmptyState block component (tokens.md §5.11),
+// not by Banner, so they are not added here.
+export type BannerState = "loading" | "invalid" | "forbidden" | "db-unavailable" | "stale";
 
 const ICONS: Record<BannerState, typeof StateLoadingIcon> = {
   loading: StateLoadingIcon,
   invalid: StateInvalidIcon,
   forbidden: StateForbiddenIcon,
   "db-unavailable": StateDbUnavailableIcon,
+  stale: StateStaleIcon,
 };
 
 // tokens.md §5.8 / flows.md §9: `load`/`empty`/`nores` are polite (`status`); `valid`/`forb`/
@@ -23,14 +28,15 @@ const ROLE: Record<BannerState, "status" | "alert"> = {
   invalid: "alert",
   forbidden: "alert",
   "db-unavailable": "alert",
+  stale: "alert",
 };
 
 /**
- * The one banner/alert component (tokens.md §5.8), scoped to the four states slice 1 can
- * actually produce (`load` for a pending navigation is the browser's own indicator here, since
- * these forms are plain, script-free HTML — see the slice 1 part C report). `autoFocus` uses
- * the native HTML attribute, so the summary alert receives focus on page load — matching
- * flows.md's focus-return table — without any client script.
+ * The one banner/alert component (tokens.md §5.8). Slice 1 produced `loading`/`invalid`/
+ * `forbidden`/`db-unavailable`; slice 2 adds `stale` for the employee editor's `409
+ * conflict_stale` banner ("This record changed — reload to see the current values", slice-2
+ * brief). `autoFocus` uses the native HTML attribute, so the summary alert receives focus on
+ * page load — matching flows.md's focus-return table — without any client script.
  */
 export function Banner({
   state,

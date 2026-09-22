@@ -364,4 +364,178 @@
     @apply bg-accent-subtle text-accent;
     box-shadow: inset 0 -2px 0 var(--color-accent);
   }
+
+  /* --- Slice 2 additions below (employees, directory, /me profile, overview) --- */
+
+  /* tokens.md §5.8 — the `stale` conflict banner (S6/S7 `409 conflict_stale`). */
+  .banner[data-state="stale"] {
+    @apply bg-info-bg text-info-fg;
+    border-color: var(--color-info-fg);
+  }
+
+  /* tokens.md §5.5 — Table. No border-radius/overflow-hidden on the table itself: §4 forbids
+     clipping a focusable descendant's 2px offset focus ring, and a linked row's ring must not
+     be cut at the table's edge. */
+  .data-table {
+    @apply w-full;
+    border-collapse: collapse;
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border-control);
+  }
+
+  .data-table th {
+    @apply text-left text-table font-semibold text-text-primary;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border-control);
+  }
+
+  .data-table td {
+    @apply text-table text-text-primary;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  .data-table tbody tr:nth-child(even) {
+    background: var(--color-surface-sunken);
+  }
+
+  .data-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* S4 only (tokens.md §5.5/§5.6 fix round 2): a directory/employee row that is itself a link. */
+  .data-table tbody tr.row--link:hover,
+  .data-table tbody tr.row--link:focus-within {
+    background: var(--color-accent-subtle);
+  }
+
+  .row-link {
+    @apply text-text-primary;
+    display: block;
+  }
+
+  .row-link:hover {
+    text-decoration: none;
+  }
+
+  /* tokens.md §5.6 — Card list, the 390×844 table equivalent. */
+  .card-list {
+    @apply flex flex-col;
+    gap: var(--spacing-md);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .card {
+    @apply rounded-md bg-surface-raised;
+    box-shadow: var(--shadow-raised);
+    padding: var(--spacing-lg);
+  }
+
+  .card--link:hover,
+  .card--link:focus-within {
+    background: var(--color-accent-subtle);
+  }
+
+  .card__row {
+    @apply flex items-baseline justify-between gap-sm;
+    padding-block: var(--spacing-xs);
+  }
+
+  .card__row + .card__row {
+    border-top: 1px solid var(--color-divider);
+  }
+
+  .card__value {
+    @apply text-table text-text-primary;
+  }
+
+  /* tokens.md §5.10 — Initials avatar. `radius-full` is the one deliberate exception to the
+     10–12px radius rule (avatar-frame.svg's viewBox is a round frame). */
+  .avatar {
+    @apply relative inline-flex items-center justify-center flex-shrink-0;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    background: var(--color-accent-subtle);
+  }
+
+  .avatar[data-size="56"] {
+    width: 56px;
+    height: 56px;
+  }
+
+  .avatar__frame {
+    @apply absolute inset-0 h-full w-full;
+    color: var(--color-border-control);
+  }
+
+  .avatar__initials {
+    @apply relative font-semibold text-text-primary;
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+
+  .avatar[data-size="56"] .avatar__initials {
+    font-size: 1.125rem;
+  }
+
+  /* tokens.md §5.11 — Empty-state block (illustration + heading + body + one action). */
+  .empty-state {
+    @apply flex flex-col items-center text-center rounded-md bg-surface-raised;
+    gap: var(--spacing-md);
+    padding: var(--spacing-3xl) var(--spacing-lg);
+  }
+
+  .empty-state__illustration {
+    @apply h-40 w-40;
+    color: var(--color-text-secondary);
+  }
+
+  .empty-state__heading {
+    @apply text-heading-sm font-semibold text-text-primary;
+  }
+
+  .empty-state__body {
+    @apply text-body text-text-secondary;
+    max-width: 32rem;
+  }
+
+  .empty-state__link {
+    @apply font-medium text-accent;
+  }
+
+  .empty-state__link:hover {
+    @apply text-accent-hover;
+  }
+
+  .empty-state__link:active {
+    @apply text-accent-active;
+  }
+
+  /* Employee active/inactive indicator. Not the tokens.md §5.7 status badge (that vocabulary is
+     reserved for leave-request status: pending/approved/rejected/cancelled); this composes only
+     already-declared tokens (no new colour literal), text-labelled so meaning never rides on
+     colour alone. */
+  .employee-status {
+    @apply inline-flex items-center rounded-sm text-caption font-semibold;
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+
+  .employee-status[data-active="true"] {
+    @apply bg-accent-subtle text-accent;
+  }
+
+  .employee-status[data-active="false"] {
+    @apply bg-surface-disabled text-text-disabled;
+  }
+
+  /* Consequence-copy panel next to the activate/deactivate button (slice-2 brief; tokens.md
+     §5.9's dialog is deferred — see the slice 2 part C report). */
+  .consequence-panel {
+    @apply rounded-md bg-surface-sunken;
+    border: 1px solid var(--color-divider);
+    padding: var(--spacing-md);
+  }
 }
