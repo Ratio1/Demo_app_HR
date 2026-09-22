@@ -251,6 +251,12 @@ const leaveDateField = (label: string, message: string) =>
     .refine((value) => isIsoDateString(value), { message });
 
 /**
+ * Which field a range refusal is reported on, shared by the schema's `superRefine` and by the
+ * service's own re-derivation, so the two cannot put the same message in two different places.
+ */
+export const LEAVE_RANGE_MESSAGE_FIELD = "end_date";
+
+/**
  * `.strictObject`, so `employee_id`, `status`, `decided_by`, `decided_at`, `weekdays`, `version`
  * on a create, and the `reason` field spec §2 forbids, are unknown keys and a hard, detail-free
  * `400` — never a dropped field.
@@ -278,7 +284,7 @@ export const leaveCreateSchema = z
     }
     ctx.addIssue({
       code: "custom",
-      path: ["end_date"],
+      path: [LEAVE_RANGE_MESSAGE_FIELD],
       message: LEAVE_RANGE_MESSAGES[range.problem],
     });
   });
