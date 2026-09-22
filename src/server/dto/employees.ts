@@ -293,7 +293,7 @@ export function projectDirectory(
 
 /* ---------------------------------------------------------------------- the request schemas */
 
-const csrfField = z.string().min(1).max(128);
+const csrfField = z.string({ error: "Reload the page and try again." }).min(1).max(128);
 
 /**
  * A bounded, trimmed text field with a message a form can show next to the input. The bound is
@@ -302,7 +302,7 @@ const csrfField = z.string().min(1).max(128);
  */
 function boundedText(label: string, max: number) {
   return z
-    .string()
+    .string({ error: `${label} is required.` })
     .transform((value) => value.trim())
     .refine((value) => value.length > 0, { message: `${label} is required.` })
     .refine((value) => codePointLength(value) <= max, {
@@ -311,7 +311,7 @@ function boundedText(label: string, max: number) {
 }
 
 const workEmailField = z
-  .string()
+  .string({ error: "Work email is required." })
   .transform(normalizeWorkEmail)
   .refine((value) => value.length > 0, { message: "Work email is required." })
   .refine((value) => codePointLength(value) <= WORK_EMAIL_MAX_LENGTH, {
@@ -322,7 +322,7 @@ const workEmailField = z
   });
 
 const startDateField = z
-  .string()
+  .string({ error: "Start date is required." })
   .transform((value) => value.trim())
   .refine((value) => isIsoDateString(value), {
     message: "Enter the start date as YYYY-MM-DD.",
@@ -337,7 +337,7 @@ const startDateField = z
 
 /** `version` arrives as text from a form and as a number from JSON; both become this integer. */
 const versionField = z
-  .string()
+  .string({ error: "This record's version is missing. Reload the page and try again." })
   .transform((value) => value.trim())
   .refine((value) => /^[1-9][0-9]{0,8}$/u.test(value), {
     message: "This record's version is missing. Reload the page and try again.",
@@ -370,7 +370,7 @@ export const employeeUpdateSchema = z.strictObject({
 
 export const employeeStatusSchema = z.strictObject({
   action: z.enum(["activate", "deactivate"], {
-    message: "Choose activate or deactivate.",
+    error: "Choose activate or deactivate.",
   }),
   version: versionField,
   [CSRF_FIELD_NAME]: csrfField,
