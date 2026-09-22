@@ -11,7 +11,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.cli.json --noEmit",
     "test:unit": "vitest run --project unit",
     "test:unit:tz": "TZ=UTC vitest run --project unit && TZ=Pacific/Kiritimati vitest run --project unit && TZ=Pacific/Niue vitest run --project unit",
-    "test:int": "vitest run --project int"
+    "test:int": "vitest run --project int",
+    "test:e2e": "playwright test",
+    "test": "npm run test:unit && npm run test:int && npm run test:e2e"
   },
   "dependencies": {
     "@node-rs/argon2": "2.2.1",
@@ -22,6 +24,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.61.1",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "24.13.6",

@@ -33,6 +33,9 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+# slice 4: global-setup.ts regenerates these every e2e run and global-teardown.ts deletes them;
+# `.env*.local` above already covers the `.local` forms, this also covers a bare `.env.e2e`.
+.env.e2e*
 
 # vercel
 .vercel
