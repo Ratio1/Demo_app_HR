@@ -196,6 +196,17 @@ export function ActionEditIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** src/assets/icons/action-menu.svg */
+export function ActionMenuIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...iconProps(props)}>
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="18" x2="20" y2="18" />
+    </svg>
+  );
+}
+
 /** src/assets/icons/action-chevron-right.svg */
 export function ActionChevronRightIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -248,6 +259,148 @@ export function EmptyNoResultsIcon(props: SVGProps<SVGSVGElement>) {
       <circle cx="28" cy="122" r="3" fill="currentColor" stroke="none" fillOpacity="0.4" />
       <circle cx="122" cy="30" r="2.5" fill="currentColor" stroke="none" fillOpacity="0.4" />
       <circle cx="112" cy="118" r="2" fill="currentColor" stroke="none" fillOpacity="0.4" />
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------------------ slice 3 additions */
+
+/** src/assets/icons/nav-leave.svg */
+export function NavLeaveIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...iconProps(props)}>
+      <rect x="3" y="4" width="18" height="17" rx="2" />
+      <line x1="3" y1="9" x2="21" y2="9" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <polyline points="8.5,14.5 11,17 16,12" />
+    </svg>
+  );
+}
+
+/** src/assets/icons/nav-approvals.svg */
+export function NavApprovalsIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...iconProps(props)}>
+      <rect x="5" y="4" width="14" height="17" rx="2" />
+      <rect x="9" y="2" width="6" height="3" rx="1" />
+      <polyline points="8.5,13 11,15.5 16,10.5" />
+    </svg>
+  );
+}
+
+/** src/assets/icons/action-calendar.svg — decorative only, beside the date inputs (tokens.md
+ * §5.3): the control itself accepts typed ISO text, never a native picker. */
+export function ActionCalendarIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...iconProps(props)}>
+      <rect x="3" y="4" width="18" height="17" rx="2" />
+      <line x1="3" y1="9" x2="21" y2="9" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <circle cx="8" cy="13" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="13" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="16" cy="13" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="8" cy="17" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** src/assets/icons/action-approve.svg (also status-approved.svg — identical markup) */
+export function ActionApproveIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <polyline points="8,12.5 11,15.5 16,9" />
+    </svg>
+  );
+}
+
+/** src/assets/icons/action-reject.svg (also status-rejected.svg — identical markup) */
+export function ActionRejectIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <line x1="9" y1="9" x2="15" y2="15" />
+      <line x1="15" y1="9" x2="9" y2="15" />
+    </svg>
+  );
+}
+
+/** src/assets/icons/action-cancel.svg (also status-cancelled.svg — identical markup) */
+export function ActionCancelIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <line x1="8" y1="12" x2="16" y2="12" />
+    </svg>
+  );
+}
+
+/** src/assets/icons/action-close.svg — dialog dismiss (tokens.md §5.9). */
+export function ActionCloseIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...iconProps(props)}>
+      <line x1="6" y1="6" x2="18" y2="18" />
+      <line x1="18" y1="6" x2="6" y2="18" />
+    </svg>
+  );
+}
+
+/** src/assets/icons/status-pending.svg */
+export function StatusPendingIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <line x1="12" y1="12" x2="12" y2="7" />
+      <line x1="12" y1="12" x2="15.5" y2="13.5" />
+    </svg>
+  );
+}
+
+/** src/assets/icons/status-approved.svg — identical markup to action-approve.svg. */
+export function StatusApprovedIcon(props: SVGProps<SVGSVGElement>) {
+  return <ActionApproveIcon {...props} />;
+}
+
+/** src/assets/icons/status-rejected.svg — identical markup to action-reject.svg. */
+export function StatusRejectedIcon(props: SVGProps<SVGSVGElement>) {
+  return <ActionRejectIcon {...props} />;
+}
+
+/** src/assets/icons/status-cancelled.svg — identical markup to action-cancel.svg. */
+export function StatusCancelledIcon(props: SVGProps<SVGSVGElement>) {
+  return <ActionCancelIcon {...props} />;
+}
+
+/** src/assets/icons/empty-my-leave.svg */
+export function EmptyMyLeaveIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...illustrationProps(props)}>
+      <rect x="25" y="30" width="110" height="100" rx="10" />
+      <line x1="25" y1="58" x2="135" y2="58" />
+      <line x1="55" y1="14" x2="55" y2="38" />
+      <line x1="105" y1="14" x2="105" y2="38" />
+      <line x1="40" y1="80" x2="120" y2="80" strokeOpacity="0.45" />
+      <line x1="40" y1="100" x2="120" y2="100" strokeOpacity="0.45" />
+      <line x1="40" y1="120" x2="90" y2="120" strokeOpacity="0.45" />
+    </svg>
+  );
+}
+
+/** src/assets/icons/empty-approvals.svg */
+export function EmptyApprovalsIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...illustrationProps(props)}>
+      <rect x="35" y="26" width="90" height="112" rx="10" />
+      <rect x="60" y="16" width="40" height="18" rx="6" />
+      <rect x="48" y="59" width="10" height="10" rx="2" strokeOpacity="0.55" />
+      <line x1="66" y1="64" x2="108" y2="64" strokeOpacity="0.55" />
+      <rect x="48" y="81" width="10" height="10" rx="2" strokeOpacity="0.55" />
+      <line x1="66" y1="86" x2="108" y2="86" strokeOpacity="0.55" />
+      <rect x="48" y="103" width="10" height="10" rx="2" strokeOpacity="0.55" />
+      <line x1="66" y1="108" x2="98" y2="108" strokeOpacity="0.55" />
     </svg>
   );
 }

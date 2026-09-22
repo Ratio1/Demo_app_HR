@@ -369,8 +369,35 @@
      logout form every authenticated page carries; see report deviations for the fuller
      collapsible tokens.md §5.13 nav, deferred until /directory, /employees, /leave and
      /approvals exist to populate it). */
+  .app-nav__toggle {
+    display: inline-flex;
+  }
+
+  @media (min-width: 64rem) {
+    .app-nav__toggle {
+      display: none;
+    }
+  }
+
   .app-nav__list {
     @apply flex flex-wrap items-center gap-sm;
+    margin-top: var(--spacing-sm);
+  }
+
+  /* Below --breakpoint-lg (1024px, ruling R-L), the toggle collapses the list; at/above it the
+     list is always shown regardless of `data-open` (NavMenuList.tsx's own doc comment). */
+  .app-nav__list[data-open="false"] {
+    display: none;
+  }
+
+  @media (min-width: 64rem) {
+    .app-nav__list[data-open="false"] {
+      display: flex;
+    }
+
+    .app-nav__list {
+      margin-top: 0;
+    }
   }
 
   .app-nav__link {
@@ -389,12 +416,6 @@
   }
 
   /* --- Slice 2 additions below (employees, directory, /me profile, overview) --- */
-
-  /* tokens.md §5.8 — the `stale` conflict banner (S6/S7 `409 conflict_stale`). */
-  .banner[data-state="stale"] {
-    @apply bg-info-bg text-info-fg;
-    border-color: var(--color-info-fg);
-  }
 
   /* tokens.md §5.5 — Table. No border-radius/overflow-hidden on the table itself: §4 forbids
      clipping a focusable descendant's 2px offset focus ring, and a linked row's ring must not
@@ -569,5 +590,154 @@
     @apply rounded-md bg-surface-sunken;
     border: 1px solid var(--color-divider);
     padding: var(--spacing-md);
+  }
+
+  /* --- Slice 3 additions below (leave, approvals, dialog, select, status badge) --- */
+
+  /* tokens.md §5.7 — Status badge. Icon + text, never colour alone; radius-sm (10px), not a
+     pill (§8 item 7 keeps the pill exception singular to the avatar). */
+  .badge {
+    @apply inline-flex items-center gap-xs rounded-sm text-caption font-semibold;
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+
+  .badge svg {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+
+  .badge[data-status="pending"] {
+    background: var(--color-status-pending-bg);
+    color: var(--color-status-pending-fg);
+  }
+
+  .badge[data-status="approved"] {
+    background: var(--color-status-approved-bg);
+    color: var(--color-status-approved-fg);
+  }
+
+  .badge[data-status="rejected"] {
+    background: var(--color-status-rejected-bg);
+    color: var(--color-status-rejected-fg);
+  }
+
+  .badge[data-status="cancelled"] {
+    background: var(--color-status-cancelled-bg);
+    color: var(--color-status-cancelled-fg);
+  }
+
+  /* tokens.md §5.4 — Select. Same field tokens as §5.2; the chevron is CSS-only (a bordered
+     triangle on a wrapper's ::after), never an image or icon file. `:has()` recolours it on
+     hover/focus without a script — evaluated support: Chrome/Edge/Safari and Firefox 121+ (a
+     graceful no-op elsewhere: the select still works, only the hover recolour is skipped). */
+  .select-wrapper {
+    position: relative;
+    display: block;
+  }
+
+  .field--select {
+    appearance: none;
+    padding-right: calc(var(--spacing-lg) + var(--spacing-sm));
+  }
+
+  .select-wrapper::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: var(--spacing-sm);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--color-border-control);
+    transform: translateY(-30%);
+    pointer-events: none;
+  }
+
+  .select-wrapper:has(.field--select:hover)::after,
+  .select-wrapper:has(.field--select:focus-visible)::after {
+    border-top-color: var(--color-accent);
+  }
+
+  /* tokens.md §5.9 — Dialog/confirm. Native <dialog>, opened via showModal() by the component;
+     this stylesheet only draws it. Sheet at <1024px, centred card at ≥1024px
+     (--breakpoint-lg, ruling R-L — same threshold as §5.1/§5.13, not the 640px table/card
+     switch). */
+  .dialog {
+    @apply rounded-md;
+    border: none;
+    padding: 0;
+    margin: auto;
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+    box-shadow: var(--shadow-raised);
+    width: calc(100vw - 2 * var(--spacing-md));
+    max-height: 90dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dialog::backdrop {
+    background: rgb(30 41 50 / 0.45);
+  }
+
+  @media (min-width: 64rem) {
+    .dialog {
+      width: auto;
+      max-width: 32rem;
+    }
+  }
+
+  .dialog__header {
+    @apply flex items-center justify-between gap-sm flex-shrink-0;
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  .dialog__title {
+    @apply text-heading-sm font-semibold text-text-primary;
+  }
+
+  .dialog__close {
+    @apply inline-flex items-center justify-center flex-shrink-0 rounded-sm;
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+  }
+
+  .dialog__close:hover {
+    @apply bg-accent-subtle text-accent;
+  }
+
+  .dialog__body {
+    @apply text-body text-text-primary;
+    padding: var(--spacing-lg);
+    overflow-y: auto;
+  }
+
+  .dialog__footer {
+    @apply flex flex-col flex-shrink-0;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-lg);
+    border-top: 1px solid var(--color-divider);
+  }
+
+  .dialog__footer .btn {
+    width: 100%;
+  }
+
+  @media (min-width: 64rem) {
+    .dialog__footer {
+      flex-direction: row;
+      justify-content: flex-end;
+    }
+
+    .dialog__footer .btn {
+      width: auto;
+    }
   }
 }
