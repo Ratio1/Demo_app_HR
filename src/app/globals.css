@@ -1,0 +1,367 @@
+/*
+ * Tailwind 4 theme for Demo_App_HR, copied verbatim from
+ * _agents/projects/HR/design/tokens.md §2 (design council, conditionally approved).
+ * Do not add a colour, radius, spacing or font value here that is not already a token below
+ * (ruling R-H / tokens.md §6: no arbitrary-value utilities, no external font/CDN, no
+ * `!important` outside the one reduced-motion override).
+ */
+@import "tailwindcss";
+
+@theme {
+  /* Reset Tailwind's built-in palette so no framework-default colour
+     (indigo/gray/slate/etc.) can ever leak into a class name — a concrete,
+     checkable half of R7-05 ("no unstyled admin scaffold"). Every colour
+     usable in this app is declared explicitly below. */
+  --color-*: initial;
+
+  /* ---- Surfaces — warm light (R7-01) ---- */
+  --color-surface-page: #faf7f2; /* app background */
+  --color-surface-raised: #ffffff; /* cards, table, dialog, inputs */
+  --color-surface-sunken: #f0ebe1; /* table row stripe, loading well, code/quote blocks */
+  --color-surface-disabled: #e7e3da; /* disabled control fill (same value as status-cancelled-bg) */
+
+  /* ---- Type — dark-slate (R7-01) ---- */
+  --color-text-primary: #1e2a32; /* headings, body, table cells */
+  --color-text-secondary: #46545c; /* captions, helper text, banner copy on neutral bg */
+  --color-text-muted: #5c6770; /* placeholder text; also aliased below for disabled text */
+  --color-text-disabled: var(--color-text-muted); /* deliberate alias — one muted value, two roles */
+  --color-text-on-accent: #ffffff; /* text/icon on accent or danger fills */
+  --color-text-on-danger: #ffffff;
+
+  /* ---- Dividers — decorative only (R7-02), no contrast requirement (WCAG 1.4.11 exempts
+     purely decorative separators); NEVER used as a component boundary — see border-control ---- */
+  --color-divider: #e3dccf;
+
+  /* ---- Non-text UI boundaries that carry meaning (WCAG 1.4.11, 3:1) ---- */
+  --color-border-control: #7c848b; /* default border: text input, date input, select, table rule */
+
+  /* ---- Accent — restrained teal (R7-01) ---- */
+  --color-accent: #0f766e;
+  --color-accent-hover: #0b5c56;
+  --color-accent-active: #094b46;
+  --color-accent-subtle: #e3f2ef; /* selected row, hovered menu item, secondary/quiet button hover fill */
+  --color-focus-ring: #0f766e; /* one ring colour, everywhere (§4) */
+
+  /* ---- Status colours (data-contract §2.11: pending / approved / rejected / cancelled) ---- */
+  --color-status-pending-bg: #fceacb;
+  --color-status-pending-fg: #7a4e04;
+  --color-status-approved-bg: #daf0eb;
+  --color-status-approved-fg: #0b5d52;
+  --color-status-rejected-bg: #f7deda;
+  --color-status-rejected-fg: #8a2c22;
+  --color-status-cancelled-bg: #e7e3da;
+  --color-status-cancelled-fg: #43494e;
+
+  /* ---- Danger (destructive button; forb / db-unavailable alert family) ---- */
+  --color-danger: #8a2c22;
+  --color-danger-hover: #6e2119;
+  --color-danger-active: #5a1b14;
+  --color-danger-bg: #f7deda; /* forb alert fill (same value as status-rejected-bg) */
+  --color-danger-strong-bg: #f2cfc8; /* dbdown alert fill — visually heavier than forb */
+  --color-danger-strong-fg: #6e2119; /* dbdown alert text/icon/border */
+
+  /* ---- Warning (valid/invalid-input alert family) ---- */
+  --color-warning-bg: #fbe8c6;
+  --color-warning-fg: #7a4e04; /* same value as status-pending-fg — one "amber" family, two roles */
+
+  /* ---- Info (stale/conflict alert family) ---- */
+  --color-info-bg: #dceaf0;
+  --color-info-fg: #2c4a5e;
+
+  /* ---- Fonts — local/system only (R7-03), no next/font, no @font-face ---- */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
+
+  /* ---- Type scale — ~16px body / ~14px table (R7-04) ---- */
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem; /* 16px */
+  --text-table: 0.875rem;
+  --text-table--line-height: 1.25rem; /* 14px */
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem; /* 12px */
+  --text-heading-sm: 1.125rem;
+  --text-heading-sm--line-height: 1.5rem;
+  --text-heading-md: 1.375rem;
+  --text-heading-md--line-height: 1.75rem;
+  --text-heading-lg: 1.75rem;
+  --text-heading-lg--line-height: 2.25rem;
+
+  /* ---- Spacing — generous rhythm (R7-02). Numeric scale (p-1, p-2…) is
+     untouched at its Tailwind default (--spacing: 0.25rem); the named scale
+     below is what every component actually uses. ---- */
+  --spacing: 0.25rem;
+  --spacing-xs: 0.5rem; /* 8px  — icon-to-label gap, badge inner padding */
+  --spacing-sm: 0.75rem; /* 12px — input block padding, compact button padding */
+  --spacing-md: 1rem; /* 16px — form row gap, button inline padding */
+  --spacing-lg: 1.5rem; /* 24px — card padding, table cell padding */
+  --spacing-xl: 2rem; /* 32px — section gap */
+  --spacing-2xl: 3rem; /* 48px — page-level vertical rhythm */
+  --spacing-3xl: 4rem; /* 64px — empty-state block vertical padding */
+
+  /* ---- Radii — 10–12px (R7-02) ---- */
+  --radius-sm: 10px; /* inputs, badges, small buttons */
+  --radius-md: 12px; /* cards, dialog, banners, buttons */
+  --radius-full: 9999px; /* avatar only */
+
+  /* ---- Breakpoint — nav-collapse / button-padding split (ruling R-L). The other geometry
+     threshold (the 640px table/card switch) is a separate value used in later slices. ---- */
+  --breakpoint-lg: 64rem; /* 1024px */
+
+  /* ---- Elevation — a shadow, not another colour, distinguishes "raised" from "page" ---- */
+  --shadow-raised: 0 1px 2px rgb(30 41 50 / 0.06), 0 2px 6px rgb(30 41 50 / 0.08);
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-surface-page text-text-primary font-sans antialiased;
+    text-wrap: pretty;
+  }
+
+  /* tokens.md §4 — one focus treatment, everywhere. */
+  :focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+    border-radius: inherit;
+  }
+}
+
+/* tokens.md §4 — reduced motion. The single !important here is the standard reduced-motion
+   override acting on the universal selector, not a component escape hatch. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  /* tokens.md §5.12 — skip link: off-screen by default, visible on focus. */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .skip-link {
+    @apply sr-only bg-surface-raised text-text-primary border-accent rounded-sm;
+    border-width: 1px;
+    border-style: solid;
+    padding: var(--spacing-sm);
+    z-index: 50;
+  }
+
+  .skip-link:focus-visible {
+    @apply not-sr-only;
+    position: fixed;
+    top: var(--spacing-sm);
+    left: var(--spacing-sm);
+    width: auto;
+    height: auto;
+    clip: auto;
+    overflow: visible;
+    white-space: normal;
+  }
+
+  /* tokens.md §5.1 — Button. One 44px min-height at both viewports; padding widens at
+     --breakpoint-lg. Icons inside buttons are aria-hidden; label text is always present,
+     including in the busy state (no spinner-only state). */
+  .btn {
+    @apply inline-flex items-center justify-center gap-xs rounded-md;
+    @apply text-body font-medium;
+    min-height: 44px;
+    padding-inline: var(--spacing-md);
+    padding-block: var(--spacing-sm);
+    border-width: 1px;
+    border-style: solid;
+    border-color: transparent;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+
+  @media (min-width: 64rem) {
+    .btn {
+      padding-inline: var(--spacing-lg);
+    }
+  }
+
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    @apply bg-surface-disabled text-text-disabled;
+    border-color: transparent;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .btn--primary {
+    @apply bg-accent text-text-on-accent;
+  }
+  .btn--primary:hover:not(:disabled) {
+    @apply bg-accent-hover;
+  }
+  .btn--primary:active:not(:disabled) {
+    @apply bg-accent-active;
+  }
+
+  .btn--secondary {
+    @apply bg-surface-raised text-accent border-accent;
+  }
+  .btn--secondary:hover:not(:disabled) {
+    @apply bg-accent-subtle text-accent-hover;
+  }
+  .btn--secondary:active:not(:disabled) {
+    @apply text-accent-active;
+  }
+
+  .btn--quiet {
+    @apply bg-transparent text-accent;
+  }
+  .btn--quiet:hover:not(:disabled) {
+    @apply bg-accent-subtle text-accent-hover;
+  }
+  .btn--quiet:active:not(:disabled) {
+    @apply text-accent-active;
+  }
+
+  .btn--destructive {
+    @apply bg-danger text-text-on-danger;
+  }
+  .btn--destructive:hover:not(:disabled) {
+    @apply bg-danger-hover;
+  }
+  .btn--destructive:active:not(:disabled) {
+    @apply bg-danger-active;
+  }
+
+  /* tokens.md §5.2 — Text input. */
+  .field-label {
+    @apply block text-body font-medium text-text-primary;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .field {
+    @apply block w-full bg-surface-raised text-text-primary rounded-sm;
+    @apply text-body;
+    min-height: 44px;
+    padding-inline: var(--spacing-sm);
+    border-width: 1px;
+    border-style: solid;
+    border-color: var(--color-border-control);
+  }
+
+  .field::placeholder {
+    @apply text-text-muted;
+  }
+
+  .field:focus-visible {
+    border-color: var(--color-focus-ring);
+  }
+
+  .field[aria-invalid="true"] {
+    border-color: var(--color-danger);
+  }
+
+  .field:disabled {
+    @apply bg-surface-disabled text-text-disabled;
+  }
+
+  .field__hint {
+    @apply text-caption text-text-secondary;
+    margin-top: var(--spacing-xs);
+  }
+
+  .field__error {
+    @apply text-caption text-danger;
+    margin-top: var(--spacing-xs);
+  }
+
+  .field-row {
+    margin-bottom: var(--spacing-md);
+  }
+
+  /* tokens.md §5.8 — Banner/alert. Icon + heading/body text, never colour alone. */
+  .banner {
+    @apply rounded-md flex items-start gap-sm;
+    padding-block: var(--spacing-md);
+    padding-inline: var(--spacing-md);
+    border-width: 1px;
+    border-style: solid;
+  }
+
+  @media (min-width: 64rem) {
+    .banner {
+      padding-inline: var(--spacing-lg);
+    }
+  }
+
+  .banner__icon {
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .banner__body {
+    @apply text-body;
+  }
+
+  .banner[data-state="loading"] {
+    @apply bg-surface-sunken text-text-secondary border-divider;
+  }
+
+  .banner[data-state="invalid"] {
+    @apply bg-warning-bg text-warning-fg;
+    border-color: var(--color-warning-fg);
+  }
+
+  .banner[data-state="forbidden"] {
+    @apply bg-danger-bg text-danger;
+    border-color: var(--color-danger);
+  }
+
+  .banner[data-state="stale"] {
+    @apply bg-info-bg text-info-fg;
+    border-color: var(--color-info-fg);
+  }
+
+  .banner[data-state="db-unavailable"] {
+    @apply bg-danger-strong-bg text-danger-strong-fg;
+    border-color: var(--color-danger-strong-fg);
+  }
+
+  /* Minimal nav shell (slice 1: two destinations only — Overview and My account — plus the
+     logout form every authenticated page carries; see report deviations for the fuller
+     collapsible tokens.md §5.13 nav, deferred until /directory, /employees, /leave and
+     /approvals exist to populate it). */
+  .app-nav__list {
+    @apply flex flex-wrap items-center gap-sm;
+  }
+
+  .app-nav__link {
+    @apply inline-flex items-center gap-xs rounded-sm text-text-primary;
+    min-height: 44px;
+    padding-inline: var(--spacing-sm);
+  }
+
+  .app-nav__link:hover {
+    @apply bg-accent-subtle;
+  }
+
+  .app-nav__link[aria-current="page"] {
+    @apply bg-accent-subtle text-accent;
+    box-shadow: inset 0 -2px 0 var(--color-accent);
+  }
+}
