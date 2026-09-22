@@ -21,7 +21,7 @@ export default function GlobalError({
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>
-        <main id="main-content" className="mx-auto max-w-md px-md py-2xl">
+        <main id="main-content" className="mx-auto page-column px-md py-2xl">
           <h1 className="mb-lg text-heading-lg font-semibold text-text-primary">
             Something went wrong
           </h1>

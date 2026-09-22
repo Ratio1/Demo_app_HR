@@ -20,7 +20,7 @@ export default async function NotFound() {
   await connection();
 
   return (
-    <main id="main-content" className="mx-auto max-w-md px-md py-2xl">
+    <main id="main-content" className="mx-auto page-column px-md py-2xl">
       {/* Native `autofocus` (flows.md §9 focus-return: "a 403 or 404 page renders → the page <h1>"); no client script involved. */}
       <h1
         tabIndex={-1}

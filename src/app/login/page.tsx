@@ -48,7 +48,7 @@ export default async function LoginPage({
   const failed = errorParam === "invalid_credentials" || errorParam === "invalid_input";
 
   return (
-    <main id="main-content" className="mx-auto max-w-md px-md py-2xl">
+    <main id="main-content" className="mx-auto page-column px-md py-2xl">
       <h1 className="mb-lg text-heading-lg font-semibold text-text-primary">Sign in</h1>
 
       {failed ? (

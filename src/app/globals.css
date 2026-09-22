@@ -108,6 +108,12 @@
      threshold (the 640px table/card switch) is a separate value used in later slices. ---- */
   --breakpoint-lg: 64rem; /* 1024px */
 
+  /* ---- Single-column page width (tokens.md §5.4: "max-width 28rem"). A token rather than a
+     Tailwind `max-w-*` utility, because this theme renames the spacing scale: Tailwind resolves
+     `max-w-md` against `--spacing-md` (1rem) before `--container-md`, so every single-column
+     page was 16px wide. See `.page-column` below. ---- */
+  --page-column-width: 28rem; /* 448px */
+
   /* ---- Elevation — a shadow, not another colour, distinguishes "raised" from "page" ---- */
   --shadow-raised: 0 1px 2px rgb(30 41 50 / 0.06), 0 2px 6px rgb(30 41 50 / 0.08);
 }
@@ -144,6 +150,23 @@
 }
 
 @layer components {
+  /**
+   * The single-column page width — /login, /me, the employee editor and the error / not-found
+   * shells. It exists because Tailwind's `max-w-md`, which those pages used, compiled to
+   * `max-width: var(--spacing-md)` here: this theme renames the spacing scale to xs…3xl, and
+   * `max-w-*` resolves a named key against spacing before containers, so `md` picked up the
+   * 1rem form-row gap. Measured on the built app at 390×844 before the change: `/me`'s profile
+   * card was 48px wide and 1567px tall, one character per line, and its work-email value
+   * overflowed the viewport — the slice-2 review's third finding, whose real cause this is.
+   * `max-w-5xl` was never affected (no `--spacing-5xl` exists to shadow `--container-5xl`),
+   * which is why only the single-column pages were wrong.
+   *
+   * Do not go back to `max-w-md`; tests/unit/page-column.test.ts fails if anything does.
+   */
+  .page-column {
+    max-width: var(--page-column-width);
+  }
+
   /* tokens.md §5.12 — skip link: off-screen by default, visible on focus. */
   .sr-only {
     position: absolute;
@@ -447,8 +470,14 @@
     border-top: 1px solid var(--color-divider);
   }
 
+  /* `min-width: 0` overrides the `auto` minimum size a flex item gets, without which a long
+     value (a 25-character work email on /me) can neither shrink nor break and pushes the card
+     past a 390px viewport; `overflow-wrap: anywhere` then breaks it rather than letting it
+     overflow its own box. Measured before the fix: documentElement.scrollWidth 449 at 390px. */
   .card__value {
     @apply text-table text-text-primary;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   /* tokens.md §5.10 — Initials avatar. `radius-full` is the one deliberate exception to the

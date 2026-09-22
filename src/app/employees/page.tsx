@@ -59,7 +59,7 @@ export default async function EmployeesPage({
     return (
       <>
         {nav}
-        <main id="main-content" className="mx-auto max-w-md px-md py-2xl">
+        <main id="main-content" className="mx-auto page-column px-md py-2xl">
           <h1 className="mb-lg text-heading-lg font-semibold text-text-primary">Employees</h1>
           <Banner state="forbidden">You don&rsquo;t have access to this.</Banner>
         </main>
@@ -77,7 +77,7 @@ export default async function EmployeesPage({
     return (
       <>
         {nav}
-        <main id="main-content" className="mx-auto max-w-md px-md py-2xl">
+        <main id="main-content" className="mx-auto page-column px-md py-2xl">
           <h1 className="mb-lg text-heading-lg font-semibold text-text-primary">New employee</h1>
           <EmployeeForm mode="create" csrfToken={principal.csrfToken} />
         </main>
@@ -92,7 +92,7 @@ export default async function EmployeesPage({
       return (
         <>
           {nav}
-          <main id="main-content" className="mx-auto max-w-md px-md py-2xl">
+          <main id="main-content" className="mx-auto page-column px-md py-2xl">
             <Banner state="db-unavailable">
               We can&rsquo;t reach the database right now. Try again shortly.
             </Banner>
@@ -104,7 +104,7 @@ export default async function EmployeesPage({
       return (
         <>
           {nav}
-          <main id="main-content" className="mx-auto max-w-md px-md py-2xl">
+          <main id="main-content" className="mx-auto page-column px-md py-2xl">
             <Banner state="forbidden">You don&rsquo;t have access to this.</Banner>
           </main>
         </>
@@ -140,7 +140,7 @@ export default async function EmployeesPage({
     return (
       <>
         {nav}
-        <main id="main-content" className="mx-auto max-w-md px-md py-2xl">
+        <main id="main-content" className="mx-auto page-column px-md py-2xl">
           <Banner state="forbidden">You don&rsquo;t have access to this.</Banner>
         </main>
       </>
@@ -164,7 +164,7 @@ function EditorView({
   return (
     <>
       {nav}
-      <main id="main-content" className="mx-auto max-w-md px-md py-2xl">
+      <main id="main-content" className="mx-auto page-column px-md py-2xl">
         <h1 className="mb-lg text-heading-lg font-semibold text-text-primary">Edit employee</h1>
 
         {saved ? (
