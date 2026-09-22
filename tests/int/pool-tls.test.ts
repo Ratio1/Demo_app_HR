@@ -44,11 +44,8 @@ describe("the pool's TLS", () => {
     expect(row?.version).toMatch(/^TLSv1\.[23]$/);
   });
 
-  it("refuses the same server when the CA does not sign its certificate", async () => {
-    if (!existsSync(SYSTEM_CA_BUNDLE)) {
-      // Nothing to test against on a machine without a system trust store.
-      return;
-    }
+  // Skipped rather than silently passed on a machine without a system trust store.
+  it.skipIf(!existsSync(SYSTEM_CA_BUNDLE))("refuses the same server when the CA does not sign its certificate", async () => {
     const wrongCaPool = createPool(appConfig, SYSTEM_CA_BUNDLE);
     try {
       let code: string | undefined;
