@@ -8,7 +8,7 @@ import { Banner } from "../_components/Banner";
  */
 export default function Loading() {
   return (
-    <main id="main-content" className="mx-auto page-column px-md py-2xl">
+    <main id="main-content" className="mx-auto max-w-5xl px-md py-2xl">
       <Banner state="loading" autoFocusOnLoad={false}>
         Loading your leave requests…
       </Banner>

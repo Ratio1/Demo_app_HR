@@ -76,6 +76,14 @@ export function ConfirmDialog({
       aria-describedby={`${id}-body`}
       aria-busy={busy || undefined}
       onClose={handleClose}
+      onCancel={(event) => {
+        // Escape fires "cancel" natively; the Close/Cancel buttons are already disabled while
+        // busy (a submit in flight), so Escape must not be the one way left to abandon the
+        // dialog mid-request.
+        if (busy) {
+          event.preventDefault();
+        }
+      }}
     >
       <div className="dialog__header">
         <h2 id={`${id}-title`} className="dialog__title">

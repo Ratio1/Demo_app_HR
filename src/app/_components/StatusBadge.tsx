@@ -1,3 +1,5 @@
+import { LEAVE_STATUS_LABELS, type LeaveStatus } from "../../server/dto/leave.ts";
+
 import {
   StatusApprovedIcon,
   StatusCancelledIcon,
@@ -5,20 +7,17 @@ import {
   StatusRejectedIcon,
 } from "./icons";
 
+export type { LeaveStatus };
+
 /**
  * tokens.md §5.7 — the leave-request status badge. Icon + text label, never colour alone
  * (R7-09 / §4's non-colour-status rule); the badge only ever reflects the server-confirmed
  * `status` field of a leave request DTO, never an optimistic client guess.
  *
- * The union is declared locally rather than imported from `src/server/dto/leave.ts`: this
- * component renders in both the HR (`ApprovalDTO`) and employee (`OwnLeaveDTO`) leave lists,
- * and a plain string union keeps it usable from either without importing server-authored types
- * just for the four literal values (both DTOs re-export the same status type once B's module
- * lands, at which point a page passing `request.status` here structurally satisfies this prop
- * with no cast).
+ * The label comes from `LEAVE_STATUS_LABELS` in `src/server/dto/leave.ts` — that module's own
+ * doc comment: "one place, so the queue and the history cannot disagree" — rather than a second
+ * local copy of the same four strings.
  */
-export type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
-
 const ICONS: Record<LeaveStatus, typeof StatusPendingIcon> = {
   pending: StatusPendingIcon,
   approved: StatusApprovedIcon,
@@ -26,19 +25,12 @@ const ICONS: Record<LeaveStatus, typeof StatusPendingIcon> = {
   cancelled: StatusCancelledIcon,
 };
 
-const LABELS: Record<LeaveStatus, string> = {
-  pending: "Pending",
-  approved: "Approved",
-  rejected: "Rejected",
-  cancelled: "Cancelled",
-};
-
 export function StatusBadge({ status }: { status: LeaveStatus }) {
   const Icon = ICONS[status];
   return (
     <span className="badge" data-status={status}>
       <Icon aria-hidden="true" />
-      <span>{LABELS[status]}</span>
+      <span>{LEAVE_STATUS_LABELS[status]}</span>
     </span>
   );
 }

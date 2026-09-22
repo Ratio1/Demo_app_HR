@@ -144,7 +144,12 @@ export function ApprovalDecisionControl({
           variant={DIALOG_VARIANT[action]}
           busy={busy && pendingAction === action}
           onConfirm={() => void handleConfirm(action)}
-          onClose={() => setPendingAction(null)}
+          onClose={() => {
+            setPendingAction(null);
+            // Otherwise a stale error/conflict banner from this attempt is already showing the
+            // next time either dialog opens — both actions share this one `state`.
+            setState({ status: "idle" });
+          }}
         >
           <p className="text-body text-text-primary">
             {request.weekdays} weekday{request.weekdays === 1 ? "" : "s"} (Mon–Fri), illustrative

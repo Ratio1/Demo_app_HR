@@ -81,7 +81,7 @@ export default async function LeavePage({
               </div>
             ) : null}
 
-            <section className="mb-2xl">
+            <section className="mb-2xl page-column">
               <h2 className="mb-sm text-heading-sm font-semibold text-text-primary">
                 Request leave
               </h2>

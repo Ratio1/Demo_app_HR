@@ -102,7 +102,12 @@ export function LeaveCancelControl({ request, csrfToken }: { request: OwnLeaveDT
         variant="destructive"
         busy={busy}
         onConfirm={() => void handleConfirm()}
-        onClose={() => setOpen(false)}
+        onClose={() => {
+          setOpen(false);
+          // Otherwise a stale error/conflict banner from a previous attempt is already showing
+          // the next time this dialog opens.
+          setState({ status: "idle" });
+        }}
       >
         <p className="text-body text-text-primary">{LEAVE_CONSEQUENCE_COPY.cancel}</p>
         {state.status === "not_pending" ? (
