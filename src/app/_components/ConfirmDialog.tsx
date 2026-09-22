@@ -34,7 +34,10 @@ export function ConfirmDialog({
   id: string;
   open: boolean;
   title: string;
-  children: ReactNode;
+  // Optional in the type only so `createElement(ConfirmDialog, props, "body text")` (used by
+  // this component's unit test — see EmptyState.tsx's identical comment) can type-check with
+  // children passed positionally; every real usage is JSX and always supplies body content.
+  children?: ReactNode;
   confirmLabel: string;
   cancelLabel?: string;
   variant: "primary" | "destructive";
