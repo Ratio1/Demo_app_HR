@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getPool } from "@/server/db/pool";
@@ -8,6 +9,7 @@ import { AppNav } from "./_components/AppNav";
 import { Banner } from "./_components/Banner";
 import { EmptyState } from "./_components/EmptyState";
 import { EmptyEmployeesIcon } from "./_components/icons";
+import { StatusBadge } from "./_components/StatusBadge";
 import { currentPrincipal } from "./_lib/current-principal";
 
 export const metadata: Metadata = {
@@ -16,11 +18,12 @@ export const metadata: Metadata = {
 
 /**
  * S3 — Role overview and navigation (flows.md). Slice 1 shipped the "role + email" placeholder;
- * slice 2 adds real figures from `src/server/services/overview.ts` (B's file, per the slice-2
- * brief's ownership split): HR headcount + per-department active counts + a "pending approvals:
- * n" placeholder (always 0 until slice 3 writes leave decisions — spec §2 Dashboard: "employees
- * only own request status, never colleagues' leave or HR-only totals", enforced by
- * `loadOverview` returning a role-tagged union, never a single shape a page could widen).
+ * slice 2 added headcount/department figures with a `pendingApprovals: 0` placeholder; slice 3
+ * fills that placeholder with the real approval-queue size and adds the employee variant's own
+ * leave status, both from `src/server/services/overview.ts` (B's file, per the ownership
+ * split) — `loadOverview` stays a role-tagged union, never a single shape a page could widen, so
+ * an HR total still cannot reach an employee's overview (spec §2 Dashboard: "employees only own
+ * request status, never colleagues' leave or HR-only totals").
  *
  * `session` capability (access-matrix AM-024/AM-025): any live session. No session → redirect
  * to `/login`. `redirect()` issues a 307 for a GET here, not the matrix's exact `303` (noted
@@ -75,7 +78,9 @@ export default async function OverviewPage() {
                 ))}
               </ul>
               <p className="mt-md text-body text-text-secondary">
-                Pending approvals: {result.data.pendingApprovals}
+                <Link href="/approvals" className="font-medium text-accent">
+                  Pending approvals: {result.data.pendingApprovals}
+                </Link>
               </p>
             </div>
           )
@@ -84,7 +89,18 @@ export default async function OverviewPage() {
             <p className="text-body text-text-primary">
               {result.data.fullName ?? "No employee record linked."}
             </p>
-            <p className="mt-sm text-body text-text-secondary">No leave requests yet.</p>
+            {result.data.latest_status === null ? (
+              <p className="mt-sm text-body text-text-secondary">No leave requests yet.</p>
+            ) : (
+              <p className="mt-sm flex items-center gap-sm text-body text-text-secondary">
+                Latest request: <StatusBadge status={result.data.latest_status} />
+              </p>
+            )}
+            <p className="mt-md text-body">
+              <Link href="/leave" className="font-medium text-accent">
+                Go to My leave
+              </Link>
+            </p>
           </div>
         )}
       </main>
