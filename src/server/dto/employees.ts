@@ -71,9 +71,21 @@
  */
 import { z } from "zod";
 
-import { CSRF_FIELD_NAME } from "../../shared/cookies.ts";
+import { isIsoDateString, isLeapYear } from "../../shared/dates.ts";
+import { CSRF_FIELD_NAME, csrfField, versionField } from "./common.ts";
+import type { FieldErrors, ReadResult } from "./common.ts";
+// `dto/leave.ts` imports nothing from this module, so the employee overview may name the leave
+// projection without a cycle.
+import type { LeaveStatus, OwnLeaveDTO } from "./leave.ts";
 
 export { CSRF_FIELD_NAME };
+
+/**
+ * Re-exported so every slice-2 import keeps working after slice 3 moved the two shared shapes
+ * into `./common.ts` and the calendar arithmetic into `src/shared/dates.ts`.
+ */
+export type { FieldErrors, ReadResult };
+export { isIsoDateString, isLeapYear };
 
 /* ------------------------------------------------------------------ bounds and primitives */
 
@@ -88,32 +100,13 @@ export const WORK_EMAIL_MAX_LENGTH = 254;
 export const START_DATE_MIN_YEAR = 1900;
 export const START_DATE_MAX_YEAR = 2100;
 
-const ISO_DATE_SHAPE = /^(\d{4})-(\d{2})-(\d{2})$/u;
-const MONTH_LENGTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
-
-function isLeapYear(year: number): boolean {
-  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-}
-
 /**
- * True for a real calendar date written `YYYY-MM-DD`. Computed arithmetically on purpose: a
+ * `isIsoDateString` — true for a real calendar date written `YYYY-MM-DD` — now lives in
+ * `src/shared/dates.ts` with the rest of the civil-date arithmetic, and is re-exported above so
+ * this module stays the one import a form needs. It is computed arithmetically on purpose: a
  * `new Date("2026-02-30")` would silently roll over to 2 March, and a `Date` at all would
  * reintroduce the midnight-timestamp bug spec §2 forbids. Dates stay strings end to end.
  */
-export function isIsoDateString(value: string): boolean {
-  const match = ISO_DATE_SHAPE.exec(value);
-  if (match === null) {
-    return false;
-  }
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  if (month < 1 || month > 12 || day < 1) {
-    return false;
-  }
-  const limit = month === 2 && isLeapYear(year) ? 29 : (MONTH_LENGTHS[month - 1] as number);
-  return day <= limit;
-}
 
 /** The stored and compared form of a work email: trimmed and lowercased (spec §2 "unique normalized"). */
 export function normalizeWorkEmail(value: string): string {
@@ -189,7 +182,13 @@ export interface OwnProfileDTO {
   readonly active: boolean;
 }
 
-/** `/` for an `hr_admin`. `pendingApprovals` is 0 until slice 3 writes leave decisions. */
+/**
+ * `/` for an `hr_admin`: headcount, per-department active counts and the size of the approval
+ * queue. Slice 3 fills `pendingApprovals` with the real number of `pending` requests — the field
+ * names are slice 2's, kept rather than renamed to the brief's `pending_approvals` /
+ * `departments[].name`, because `src/app/page.tsx` is part C's file and renaming under it would
+ * break their page mid-slice. Recorded as a deviation.
+ */
 export interface HrOverviewDTO {
   readonly role: "hr_admin";
   readonly headcount: number;
@@ -198,16 +197,23 @@ export interface HrOverviewDTO {
 }
 
 /**
- * `/` for an `employee`: their own name and nothing else. Built by a separate function from
- * `HrOverviewDTO`, so an HR total can never leak into it by accident (spec §2 Dashboard:
- * "employees only own request status, never colleagues' leave or HR-only totals").
- * `fullName` is `null` for an account with no linked employee row.
+ * `/` for an `employee`: their own name and their own leave, and nothing else. Built by a
+ * separate function from `HrOverviewDTO`, so an HR total can never leak into it by accident
+ * (spec §2 Dashboard: "employees only own request status, never colleagues' leave or HR-only
+ * totals"). `fullName` is `null` for an account with no linked employee row.
+ *
+ * `own_requests` and `latest_status` are slice 3's additions and carry the same `OwnLeaveDTO` the
+ * `/leave` page uses, so the overview cannot show a status the history page disagrees with.
  */
 export interface EmployeeOverviewDTO {
   readonly role: "employee";
   readonly fullName: string | null;
-  /** Always 0 in slice 2; the page renders the "no leave requests yet" placeholder. */
+  /** How many requests this employee has ever submitted, in any status. */
   readonly leaveRequests: number;
+  /** The most recent requests, newest first, capped at `OVERVIEW_OWN_LEAVE_LIMIT`. */
+  readonly own_requests: readonly OwnLeaveDTO[];
+  /** The status of the most recent request, or `null` when there is none. */
+  readonly latest_status: LeaveStatus | null;
 }
 
 export type OverviewDTO = HrOverviewDTO | EmployeeOverviewDTO;
@@ -293,8 +299,6 @@ export function projectDirectory(
 
 /* ---------------------------------------------------------------------- the request schemas */
 
-const csrfField = z.string({ error: "Reload the page and try again." }).min(1).max(128);
-
 /**
  * A bounded, trimmed text field with a message a form can show next to the input. The bound is
  * applied **after** trimming and in code points, so it is the same bound the database CHECK
@@ -334,15 +338,6 @@ const startDateField = z
     },
     { message: `Start date must be between ${START_DATE_MIN_YEAR} and ${START_DATE_MAX_YEAR}.` },
   );
-
-/** `version` arrives as text from a form and as a number from JSON; both become this integer. */
-const versionField = z
-  .string({ error: "This record's version is missing. Reload the page and try again." })
-  .transform((value) => value.trim())
-  .refine((value) => /^[1-9][0-9]{0,8}$/u.test(value), {
-    message: "This record's version is missing. Reload the page and try again.",
-  })
-  .transform((value) => Number(value));
 
 const employeeFields = {
   code: boundedText("Employee code", CODE_MAX_LENGTH),
@@ -394,9 +389,6 @@ export type EmployeeFormField = (typeof EMPLOYEE_FORM_FIELDS)[number];
 
 /* ----------------------------------------------------------------------- the result unions */
 
-/** Per-field messages for the inline errors; the keys are `EMPLOYEE_FORM_FIELDS` plus `version`. */
-export type FieldErrors = Readonly<Record<string, string>>;
-
 /**
  * What the employee services return. The routes map these onto the statuses in the table at
  * the top of this file, and the pages use the same union for their banners.
@@ -408,15 +400,6 @@ export type EmployeeMutationResult =
   | { readonly kind: "invalid"; readonly fields: FieldErrors }
   | { readonly kind: "conflict_stale"; readonly current: HrEmployeeDTO }
   | { readonly kind: "conflict_last_admin" }
-  | { readonly kind: "unavailable" };
-
-/**
- * What the page-facing reads return. `unavailable` is a database failure the page turns into
- * the 503 banner; nothing carries an internal detail (S6).
- */
-export type ReadResult<T> =
-  | { readonly kind: "ok"; readonly data: T }
-  | { readonly kind: "forbidden" }
   | { readonly kind: "unavailable" };
 
 /** The body of a successful mutation. `location` is built by the server, never by the caller. */
