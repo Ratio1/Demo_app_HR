@@ -38,20 +38,55 @@ export const passwordForm = z.strictObject({
   [CSRF_FIELD_NAME]: z.string().min(1).max(CSRF_FIELD_MAX),
 });
 
+/** The flat shape both body encodings collapse to before a schema ever sees them. */
+export type BodyFields = Readonly<Record<string, string>>;
+
 /**
  * `URLSearchParams` to a plain object, refusing a repeated key rather than taking the first or
  * the last: a duplicated field is how parameter-pollution attacks start.
+ *
+ * Built with `Object.fromEntries`, which *defines* each own property, so a field literally
+ * named `__proto__` becomes a visible unknown key that `z.strictObject` refuses — assigning it
+ * to an object literal would instead hit `Object.prototype`'s setter and vanish silently.
  */
 export function formToObject(form: URLSearchParams): Record<string, string> | null {
-  const object: Record<string, string> = {};
+  const entries: [string, string][] = [];
   for (const key of new Set(form.keys())) {
     const values = form.getAll(key);
     if (values.length !== 1) {
       return null;
     }
-    object[key] = values[0] as string;
+    entries.push([key, values[0] as string]);
   }
-  return object;
+  return Object.fromEntries(entries);
+}
+
+/**
+ * A parsed JSON body to the same flat record, so a JSON caller and a form caller are validated
+ * by one schema and cannot diverge.
+ *
+ * Only a plain object of scalars is accepted: a nested object, an array, a `null` value or a
+ * non-finite number returns `null`, which the caller answers with `400 invalid_input`. Numbers
+ * and booleans are compared in their string form, which is exactly what the form encoding
+ * would have sent.
+ */
+export function jsonToFields(value: unknown): Record<string, string> | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null;
+  }
+  const entries: [string, string][] = [];
+  for (const [key, raw] of Object.entries(value)) {
+    if (typeof raw === "string") {
+      entries.push([key, raw]);
+    } else if (typeof raw === "boolean") {
+      entries.push([key, raw ? "true" : "false"]);
+    } else if (typeof raw === "number" && Number.isFinite(raw)) {
+      entries.push([key, String(raw)]);
+    } else {
+      return null;
+    }
+  }
+  return Object.fromEntries(entries);
 }
 
 /**
@@ -75,4 +110,36 @@ export function parseForm<T>(schema: z.ZodType<T>, form: URLSearchParams): Parse
   }
   const overPosted = result.error.issues.some((issue) => issue.code === "unrecognized_keys");
   return { ok: false, reason: overPosted ? "unknown_key" : "invalid" };
+}
+
+/**
+ * The same parse for the slice 2 routes, which show the user *which* field is wrong instead of
+ * redirecting: `unknown_key` stays a hard refusal with no detail (it is an attack shape, and
+ * naming the rejected key would confirm a guess), while a correctable value comes back as one
+ * message per field, first issue wins.
+ */
+export type ParsedFields<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly reason: "unknown_key" }
+  | { readonly ok: false; readonly reason: "invalid"; readonly fields: Record<string, string> };
+
+export function parseFields<T>(schema: z.ZodType<T>, fields: BodyFields): ParsedFields<T> {
+  const result = schema.safeParse(fields);
+  if (result.success) {
+    return { ok: true, value: result.data };
+  }
+  if (result.error.issues.some((issue) => issue.code === "unrecognized_keys")) {
+    return { ok: false, reason: "unknown_key" };
+  }
+  const messages: [string, string][] = [];
+  const seen = new Set<string>();
+  for (const issue of result.error.issues) {
+    const key = issue.path.length > 0 ? String(issue.path[0]) : "form";
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    messages.push([key, issue.message]);
+  }
+  return { ok: false, reason: "invalid", fields: Object.fromEntries(messages) };
 }
