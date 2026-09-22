@@ -1,0 +1,25 @@
+# Never let a credential into the build context.
+.env
+.env.*
+*.key
+
+# Built or installed artefacts: the image builds its own.
+node_modules
+.next
+dist
+coverage
+test-results
+playwright-report
+*.tsbuildinfo
+
+# Not needed to build or run the image.
+.git
+.gitignore
+.gitmodules
+tests
+playwright.config.ts
+vitest.config.*
+*.log
+
+# certs/ is deliberately NOT ignored: certs/dev-ca.crt is copied into the image for
+# TLS verification and the operator places it in the context before `docker build`.

@@ -7,6 +7,8 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
 
 # next.js
 /.next/
@@ -14,6 +16,10 @@
 
 # production
 /build
+/dist/
+
+# TLS material: the dev CA is copied into the build context, never committed
+certs/*.crt
 
 # misc
 .DS_Store

@@ -1,0 +1,22 @@
+{
+  "//": "Build config for the `manage` CLI. It compiles src/cli/** together with the src/server/** modules the CLI shares with the Next server (ruling O1). `paths` is emptied on purpose: tsc does not rewrite path aliases on emit, so an `@/…` import reachable from here would type-check and then fail at runtime inside the container. Emitting to dist/ keeps the relative layout the entrypoint needs.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "incremental": false,
+    "declaration": false,
+    "sourceMap": false,
+    "removeComments": false,
+    "target": "ES2023",
+    "lib": ["esnext"],
+    "types": ["node"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "outDir": "dist",
+    "rootDir": "src",
+    "paths": {},
+    "plugins": []
+  },
+  "include": ["src/cli/**/*.ts", "src/server/**/*.ts"],
+  "exclude": ["node_modules", "dist", "tests", "src/app", "**/*.tsx"]
+}
