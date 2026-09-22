@@ -11,10 +11,21 @@
  * row, no email, no internal detail (S6, §8 "disclose no internals").
  */
 
-/** Applied by both `src/proxy.ts` and this helper; kept in one place so they cannot drift. */
+/**
+ * Applied by both `src/proxy.ts` and this helper; kept in one place so they cannot drift.
+ *
+ * `Referrer-Policy` is `same-origin`, **not** `no-referrer`, and the difference is load-bearing:
+ * Fetch's "append a request `Origin` header", step 3.1, serializes the `Origin` of a non-CORS
+ * non-GET request as the literal `null` when the document's referrer policy is `no-referrer`.
+ * Every native form POST in this application (login, logout, change password) is such a
+ * request, so `no-referrer` made the browser send `Origin: null`, which `checkOrigin` refuses —
+ * nobody could sign in from a real browser. `same-origin` sends no referrer cross-origin at all
+ * (it is *stricter* than the browser default there) while leaving the real `Origin` on our own
+ * form posts, and spec §6 S5 asks for a "restrictive Referrer-Policy", not for one exact value.
+ */
 export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   "X-Content-Type-Options": "nosniff",
-  "Referrer-Policy": "no-referrer",
+  "Referrer-Policy": "same-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
   "Strict-Transport-Security": "max-age=63072000",
 };

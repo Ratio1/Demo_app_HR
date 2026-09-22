@@ -7,6 +7,14 @@
  *
  * A missing `Origin`, the literal string `null` (a sandboxed iframe or a redirected form
  * post), and any mismatch are all refused. There is no "same-site is close enough" branch.
+ *
+ * That strictness constrains the response headers: a browser serializes the `Origin` of a
+ * non-CORS non-GET request as the literal `null` when the *sending document* was served with
+ * `Referrer-Policy: no-referrer` (Fetch, "append a request Origin header", step 3.1). Our own
+ * pages therefore must not carry that value, or every native form POST to this application
+ * arrives as `null_origin` and is refused — which is exactly what happened until the header was
+ * changed to `same-origin` (`SECURITY_HEADERS`, `src/server/http/response.ts`). Do not relax the
+ * refusal below to compensate; keep the header correct instead.
  */
 
 export type OriginProblem = "missing" | "null_origin" | "mismatch" | "unprovisioned";

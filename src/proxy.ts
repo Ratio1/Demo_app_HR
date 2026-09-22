@@ -97,7 +97,11 @@ export function proxy(request: NextRequest) {
 function applyResponseHeaders(response: NextResponse, cspHeader: string): void {
   response.headers.set("Content-Security-Policy", cspHeader);
   response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("Referrer-Policy", "no-referrer");
+  // `same-origin`, not `no-referrer`: see the SECURITY_HEADERS comment in
+  // `src/server/http/response.ts` — `no-referrer` makes a browser serialize the `Origin` of a
+  // native form POST as `null` (Fetch, "append a request Origin header", step 3.1), which the
+  // mutation guard refuses, so no form in this application could be submitted.
+  response.headers.set("Referrer-Policy", "same-origin");
   response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   response.headers.set("Strict-Transport-Security", "max-age=63072000");
   response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, private");

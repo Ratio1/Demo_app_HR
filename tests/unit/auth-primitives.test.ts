@@ -31,7 +31,13 @@ import { checkOrigin, validatePublicOrigin } from "../../src/server/auth/origin.
 import { clearedSessionCookie, sessionCookie } from "../../src/server/auth/session.js";
 import { MAX_BODY_BYTES, parseCookies, readFormBody } from "../../src/server/http/request.js";
 import { loginForm, parseForm, passwordForm } from "../../src/server/http/forms.js";
-import { NO_STORE_HEADERS, problemResponse, rateLimited, seeOther } from "../../src/server/http/response.js";
+import {
+  NO_STORE_HEADERS,
+  SECURITY_HEADERS,
+  problemResponse,
+  rateLimited,
+  seeOther,
+} from "../../src/server/http/response.js";
 
 /**
  * Unit coverage for slice 1 part B's pure logic: the S1 password policy and Argon2
@@ -330,10 +336,31 @@ describe("response helper (S5)", () => {
       expect(response.headers.get("Pragma")).toBe("no-cache");
       expect(response.headers.get("Vary")).toBe("Cookie");
       expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
-      expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+      expect(response.headers.get("Referrer-Policy")).toBe("same-origin");
       expect(response.headers.get("Strict-Transport-Security")).toBe("max-age=63072000");
       expect(response.headers.get("Permissions-Policy")).toContain("camera=()");
     }
+  });
+
+  /**
+   * Regression guard for the slice-2 review's critical finding. `no-referrer` looks like the
+   * strictest choice and a later "tighten the headers" pass would reach for it, but Fetch's
+   * "append a request Origin header", step 3.1, then serializes the `Origin` of every non-CORS
+   * non-GET request as the literal `null` — so every native form POST in this application
+   * (login, logout, change password) arrives at `checkOrigin` as `null_origin` and is refused
+   * with `403`, and nobody can sign in from a browser. Measured in Chromium 1243 against a
+   * throw-away same-origin form: `no-referrer` → `Origin: null`, `same-origin` → the real
+   * origin. Spec §6 S5 requires a "restrictive Referrer-Policy", which `same-origin` is: it
+   * sends nothing at all cross-origin.
+   */
+  it("keeps a Referrer-Policy that still lets a browser send Origin on a form POST", () => {
+    expect(SECURITY_HEADERS["Referrer-Policy"]).toBe("same-origin");
+    expect(SECURITY_HEADERS["Referrer-Policy"]).not.toBe("no-referrer");
+    // The literal `null` a `no-referrer` document would send is still refused, as it must be.
+    expect(checkOrigin("null", "https://hr.example.test")).toEqual({
+      ok: false,
+      problem: "null_origin",
+    });
   });
 
   it("sends Retry-After with a 429 and discloses nothing in the body", async () => {
