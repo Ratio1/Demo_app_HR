@@ -36,15 +36,20 @@ export const EXPECTED_TABLES = [
   "settings",
 ] as const;
 
-/** What the runtime role must hold once every migration has been applied. */
+/**
+ * What the runtime role must hold once every migration has been applied. Tightened by
+ * `0002_tighten_grants.sql` (fix round, access-matrix.md D-017/D-032/D-045/D-062): the runtime
+ * never creates or deletes an account, deletes an employee or a leave request, or creates or
+ * deletes the `settings` singleton — see that migration's own header for why each is safe.
+ */
 export const EXPECTED_GRANTS: Readonly<Record<string, readonly string[]>> = {
-  accounts: ["DELETE", "INSERT", "SELECT", "UPDATE"],
+  accounts: ["SELECT", "UPDATE"],
   audit_events: ["INSERT", "SELECT"],
-  employees: ["DELETE", "INSERT", "SELECT", "UPDATE"],
-  leave_requests: ["DELETE", "INSERT", "SELECT", "UPDATE"],
+  employees: ["INSERT", "SELECT", "UPDATE"],
+  leave_requests: ["INSERT", "SELECT", "UPDATE"],
   schema_migrations: ["SELECT"],
   sessions: ["DELETE", "INSERT", "SELECT", "UPDATE"],
-  settings: ["DELETE", "INSERT", "SELECT", "UPDATE"],
+  settings: ["SELECT", "UPDATE"],
 };
 
 export interface MigrationFile {
