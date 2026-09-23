@@ -282,6 +282,52 @@ describe("POST /api/login", () => {
     expect(cleared.rows[0]?.failed_logins).toBe(0);
   }, 60_000);
 
+  it("refuses a correct password that verified only after a parallel lockout landed (slice 5 R, m1)", async () => {
+    // The race, made deterministic: while this login's Argon2 verification is in flight,
+    // "parallel" failures lock the account. Without the in-transaction re-check the correct
+    // guess would log in and clear the lock.
+    const realRun = argon2Semaphore.run.bind(argon2Semaphore);
+    const spy = vi.spyOn(argon2Semaphore, "run").mockImplementationOnce(async (task) => {
+      const result = await realRun(task);
+      await withClient(ownerPool, async (client) => {
+        await client.query(
+          "UPDATE accounts SET failed_logins = $2, locked_until = now() + interval '15 minutes' WHERE email = $1",
+          [ADMIN_EMAIL, MAX_FAILED_LOGINS],
+        );
+      });
+      return result;
+    });
+    try {
+      const csrf = newToken();
+      const response = await handleLogin(
+        post("/api/login", form({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD, csrf }), {
+          cookies: { [LOGIN_CSRF_COOKIE_NAME]: csrf },
+        }),
+        appPool,
+      );
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(response.status).toBe(429);
+      expect(Number(response.headers.get("Retry-After"))).toBeGreaterThan(0);
+      expect(sessionCookieValue(response)).toBeUndefined();
+    } finally {
+      spy.mockRestore();
+    }
+    // No session was issued, the lock is intact, and the refusal is audited like any other.
+    const sessions = await withClient(ownerPool, async (client) =>
+      client.query<{ total: string }>("SELECT count(*) AS total FROM sessions"),
+    );
+    expect(Number(sessions.rows[0]?.total)).toBe(0);
+    const state = await withClient(appPool, async (client) =>
+      client.query<{ failed_logins: number; locked_until: Date | null }>(
+        "SELECT failed_logins, locked_until FROM accounts WHERE email = $1",
+        [ADMIN_EMAIL],
+      ),
+    );
+    expect(state.rows[0]?.failed_logins).toBe(MAX_FAILED_LOGINS);
+    expect((state.rows[0]?.locked_until as Date).getTime()).toBeGreaterThan(Date.now());
+    expect((await auditRows("login")).map((row) => row.outcome)).toEqual(["denied"]);
+  });
+
   it("refuses a missing, null or mismatched Origin with 403 (S3)", async () => {
     for (const origin of [null, "null", "https://evil.example.test", "http://hr.example.test"]) {
       const csrf = newToken();

@@ -101,11 +101,26 @@ export async function login(pool: Pool, input: LoginInput): Promise<LoginResult>
     return { kind: "invalid_credentials" };
   }
 
-  return withTransaction(pool, async (client) => {
+  return withTransaction(pool, async (client): Promise<LoginResult> => {
     // Re-read inside the transaction: the account may have been disabled while we hashed.
     const fresh = await findAccountById(client, account.id);
     if (fresh === null || !fresh.active) {
       return { kind: "invalid_credentials" } as const;
+    }
+    // ... or locked: a guess that queued behind the Argon2 semaphore while parallel failures
+    // reached the lockout threshold must not log in (and clear the lock) just because it
+    // verified after the lock was written (slice 5 R, m1). Same answer and same audit row as
+    // the pre-hash locked path above.
+    if (isLocked(fresh)) {
+      await insertAuditEvent(client, {
+        actorAccountId: fresh.id,
+        objectType: "account",
+        objectId: fresh.id,
+        action: "login",
+        outcome: "denied",
+        correlationId: input.correlationId,
+      });
+      return { kind: "locked", retryAfterSeconds: secondsUntil(fresh.locked_until as Date) } as const;
     }
     await clearFailedLogins(client, fresh.id);
     if (input.previousToken !== null && input.previousToken !== undefined && input.previousToken !== "") {
