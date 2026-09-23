@@ -1,7 +1,7 @@
-# Never let a credential into the build context.
-.env
-.env.*
-*.key
+# Never let a credential into the build context, at any depth: the build stage runs
+# `COPY . .`, and a root-only pattern would miss e.g. certs/some.key or tests/.env.local.
+**/.env*
+**/*.key
 
 # Built or installed artefacts: the image builds its own.
 node_modules
