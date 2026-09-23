@@ -4,6 +4,9 @@
  * Every mutation must arrive from the exact origin the operator configured with
  * `manage set-origin`, stored in the `settings` singleton - not from an environment variable,
  * not from the `Host` header, and not from any forwarded header a proxy might have invented.
+ * The reference is never *derived* from `Host`; `Host` is *compared* against it (`checkHost`,
+ * below), so a request addressed to any other name - a rebound DNS name, a raw IP, the
+ * container's own port - is refused as well (S5 "approved Host only").
  *
  * A missing `Origin`, the literal string `null` (a sandboxed iframe or a redirected form
  * post), and any mismatch are all refused. There is no "same-site is close enough" branch.
@@ -48,6 +51,58 @@ export function checkOrigin(
     return { ok: false, problem: "null_origin" };
   }
   if (normalizeOrigin(originHeader) !== normalizeOrigin(publicOrigin)) {
+    return { ok: false, problem: "mismatch" };
+  }
+  return { ok: true };
+}
+
+export type HostProblem = "mismatch" | "unprovisioned";
+
+export interface HostCheck {
+  readonly ok: boolean;
+  readonly problem?: HostProblem;
+}
+
+/**
+ * The `Host` a mutation was addressed to must be exactly the host (and port, if any) of the
+ * configured public origin (spec §6 S5; slice 5 R, I-2).
+ *
+ * - The header is lowercased; the reference is `new URL(publicOrigin).host`, which the URL
+ *   parser has already lowercased and stripped of a default port - which is what a browser sends.
+ *   Nothing else is normalized: `hr.example.test:443` for an `https://hr.example.test` origin is
+ *   a mismatch, as is a trailing dot.
+ * - An absent header happens only with a `Request` built in-process (tests); a real HTTP/1.1
+ *   client always sends one. Then the host of `request.url` is used. Next.js builds that URL
+ *   from its own listener address, never from a request header, so the fallback cannot be
+ *   steered by a client.
+ * - `X-Forwarded-Host` and every other forwarded header are never consulted.
+ */
+export function checkHost(
+  hostHeader: string | null | undefined,
+  requestUrl: string,
+  publicOrigin: string | null | undefined,
+): HostCheck {
+  if (publicOrigin === null || publicOrigin === undefined || publicOrigin.trim() === "") {
+    return { ok: false, problem: "unprovisioned" };
+  }
+  let expected: string;
+  try {
+    expected = new URL(normalizeOrigin(publicOrigin)).host;
+  } catch {
+    // A stored value `set-origin` would never have accepted: fail closed, never throw.
+    return { ok: false, problem: "mismatch" };
+  }
+  let presented: string;
+  if (hostHeader === null || hostHeader === undefined || hostHeader === "") {
+    try {
+      presented = new URL(requestUrl).host;
+    } catch {
+      return { ok: false, problem: "mismatch" };
+    }
+  } else {
+    presented = hostHeader.toLowerCase();
+  }
+  if (expected === "" || presented !== expected) {
     return { ok: false, problem: "mismatch" };
   }
   return { ok: true };

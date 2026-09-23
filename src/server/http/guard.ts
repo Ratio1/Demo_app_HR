@@ -8,7 +8,9 @@
  *     `application/json` for `guardFieldMutation`; anything else is `415`;
  *  3. provisioning - no `settings.public_origin` means there is no reference origin to compare
  *     against, so the guard fails closed with a sanitized `503` (spec §4);
- *  4. exact `Origin` equality - missing, the literal `null`, or any mismatch is `403`.
+ *  4. exact `Origin` equality - missing, the literal `null`, or any mismatch is `403`;
+ *  5. exact `Host` equality with the configured origin's host (`checkHost`; S5 "approved Host
+ *     only") - any other name is `403`. `X-Forwarded-Host` is never read.
  *
  * Session resolution and the CSRF comparison come after, in each handler, because the three
  * routes need different principals. A database failure anywhere is a sanitized `503`: no
@@ -17,7 +19,7 @@
 import type { Pool } from "../db/pool.ts";
 
 import { withClient } from "../db/pool.ts";
-import { checkOrigin } from "../auth/origin.ts";
+import { checkHost, checkOrigin } from "../auth/origin.ts";
 import { getPublicOrigin } from "../repos/settings.ts";
 import { newCorrelationId } from "../repos/audit.ts";
 import {
@@ -62,8 +64,9 @@ function bodyProblem(reason: "too_large" | "unsupported_media_type" | "unreadabl
 }
 
 /**
- * Steps 3 and 4 of the order above, shared by both guards: the reference origin is read from
- * the database and compared for exact equality. A database failure is a sanitized `503`.
+ * Steps 3 to 5 of the order above, shared by both guards, so every mutation route inherits
+ * them: the reference origin is read from the database, then `Origin` and `Host` are each
+ * compared with it for exact equality. A database failure is a sanitized `503`.
  */
 async function checkRequestOrigin(
   pool: Pool,
@@ -81,6 +84,11 @@ async function checkRequestOrigin(
     if (origin.problem === "unprovisioned") {
       return { ok: false, response: problemResponse(503, "db_unavailable") };
     }
+    return { ok: false, response: problemResponse(403, "forbidden") };
+  }
+
+  const host = checkHost(request.headers.get("host"), request.url, publicOrigin);
+  if (!host.ok) {
     return { ok: false, response: problemResponse(403, "forbidden") };
   }
 

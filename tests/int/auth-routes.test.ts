@@ -42,6 +42,9 @@ interface RequestOptions {
   readonly origin?: string | null;
   readonly cookies?: Record<string, string>;
   readonly contentType?: string;
+  /** An explicit `Host` header; omitted, the guard falls back to the request URL's host. */
+  readonly host?: string;
+  readonly extraHeaders?: Record<string, string>;
 }
 
 function post(path: string, body: string, options: RequestOptions = {}): Request {
@@ -55,6 +58,12 @@ function post(path: string, body: string, options: RequestOptions = {}): Request
   const cookies = Object.entries(options.cookies ?? {});
   if (cookies.length > 0) {
     headers.set("cookie", cookies.map(([name, value]) => `${name}=${value}`).join("; "));
+  }
+  if (options.host !== undefined) {
+    headers.set("host", options.host);
+  }
+  for (const [name, value] of Object.entries(options.extraHeaders ?? {})) {
+    headers.set(name, value);
   }
   return new Request(`${PUBLIC_ORIGIN}${path}`, { method: "POST", headers, body });
 }
@@ -287,6 +296,43 @@ describe("POST /api/login", () => {
       expect(await response.json()).toEqual({ error: "forbidden" });
       expect(sessionCookieValue(response)).toBeUndefined();
     }
+  });
+
+  it("accepts a Host equal to the configured origin's host (S5, slice 5 R I-2)", async () => {
+    for (const host of ["hr.example.test", "HR.EXAMPLE.TEST"]) {
+      const csrf = newToken();
+      const response = await handleLogin(
+        post("/api/login", form({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD, csrf }), {
+          host,
+          cookies: { [LOGIN_CSRF_COOKIE_NAME]: csrf },
+          // A forwarded header naming another host changes nothing: it is never read.
+          extraHeaders: { "x-forwarded-host": "evil.example.test" },
+        }),
+        appPool,
+      );
+      expect(response.status, host).toBe(303);
+      expect(sessionCookieValue(response), host).toBeDefined();
+    }
+  });
+
+  it("refuses a foreign Host with 403 even when Origin matches (S5, slice 5 R I-2)", async () => {
+    for (const host of ["evil.example.test", "hr.example.test:8443", "127.0.0.1:3000", "localhost"]) {
+      const csrf = newToken();
+      const response = await handleLogin(
+        post("/api/login", form({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD, csrf }), {
+          host,
+          cookies: { [LOGIN_CSRF_COOKIE_NAME]: csrf },
+          // X-Forwarded-Host naming the approved host must not rescue a foreign Host.
+          extraHeaders: { "x-forwarded-host": "hr.example.test" },
+        }),
+        appPool,
+      );
+      expect(response.status, host).toBe(403);
+      expect(await response.json()).toEqual({ error: "forbidden" });
+      expect(sessionCookieValue(response), host).toBeUndefined();
+    }
+    // Refused at the guard: no password was checked, so no login row of either outcome.
+    expect(await auditRows("login")).toEqual([]);
   });
 
   it("refuses a missing, mismatched or malformed CSRF pair with 403 (S3)", async () => {

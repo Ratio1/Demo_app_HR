@@ -27,7 +27,7 @@ import {
   isWellFormedToken,
   loginCsrfCookie,
 } from "../../src/server/auth/csrf.js";
-import { checkOrigin, validatePublicOrigin } from "../../src/server/auth/origin.js";
+import { checkHost, checkOrigin, validatePublicOrigin } from "../../src/server/auth/origin.js";
 import { clearedSessionCookie, sessionCookie } from "../../src/server/auth/session.js";
 import { MAX_BODY_BYTES, parseCookies, readFormBody } from "../../src/server/http/request.js";
 import { loginForm, parseForm, passwordForm } from "../../src/server/http/forms.js";
@@ -248,6 +248,49 @@ describe("exact Origin equality (S3)", () => {
     expect(validatePublicOrigin("https://user:pw@hr.example.test").ok).toBe(false);
     expect(validatePublicOrigin("ftp://hr.example.test").ok).toBe(false);
     expect(validatePublicOrigin("hr.example.test").ok).toBe(false);
+  });
+});
+
+describe("exact Host equality (S5, slice 5 R I-2)", () => {
+  const configured = "https://hr.example.test";
+  const url = "https://hr.example.test/api/login";
+
+  it("accepts the configured origin's host, in any letter case", () => {
+    expect(checkHost("hr.example.test", url, configured)).toEqual({ ok: true });
+    expect(checkHost("HR.Example.TEST", url, configured)).toEqual({ ok: true });
+    expect(checkHost("127.0.0.1:3101", "http://127.0.0.1:3101/api/login", "http://127.0.0.1:3101")).toEqual({
+      ok: true,
+    });
+    expect(checkHost("[::1]:3001", "http://[::1]:3001/api/login", "http://[::1]:3001")).toEqual({ ok: true });
+  });
+
+  it("refuses any other host or port, and does not normalize beyond letter case", () => {
+    for (const host of [
+      "evil.example.test",
+      "hr.example.test:8443",
+      "hr.example.test:443",
+      "hr.example.test.",
+      "127.0.0.1:3000",
+      "hr.example.test.evil.example.test",
+    ]) {
+      expect(checkHost(host, url, configured), host).toEqual({ ok: false, problem: "mismatch" });
+    }
+    expect(checkHost("127.0.0.1:3000", "http://127.0.0.1:3101/", "http://127.0.0.1:3101").ok).toBe(false);
+  });
+
+  it("falls back to the request URL's host only when the header is absent", () => {
+    expect(checkHost(null, url, configured).ok).toBe(true);
+    expect(checkHost("", url, configured).ok).toBe(true);
+    // Next.js builds request.url from its own listener, e.g. http://localhost:3000/…
+    expect(checkHost(null, "http://localhost:3000/api/login", configured).problem).toBe("mismatch");
+    // A present header is authoritative even when request.url would have matched.
+    expect(checkHost("evil.example.test", url, configured).problem).toBe("mismatch");
+  });
+
+  it("fails closed while unprovisioned or on a stored value that is not a URL", () => {
+    expect(checkHost("hr.example.test", url, null).problem).toBe("unprovisioned");
+    expect(checkHost("hr.example.test", url, "").problem).toBe("unprovisioned");
+    expect(checkHost("hr.example.test", url, "not a url").problem).toBe("mismatch");
   });
 });
 

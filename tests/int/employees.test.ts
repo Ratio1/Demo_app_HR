@@ -49,6 +49,8 @@ interface RequestOptions {
   readonly token?: string | null;
   readonly contentType?: string;
   readonly rawBody?: string;
+  /** An explicit `Host` header; omitted, the guard falls back to the request URL's host. */
+  readonly host?: string;
 }
 
 /** A JSON POST carrying the session cookie, as the editor's `fetch` sends it. */
@@ -63,6 +65,9 @@ function post(path: string, body: unknown, options: RequestOptions = {}): Reques
   const token = options.token === undefined ? adminToken : options.token;
   if (token !== null) {
     headers.set("cookie", `${SESSION_COOKIE_NAME}=${token}`);
+  }
+  if (options.host !== undefined) {
+    headers.set("host", options.host);
   }
   return new Request(`${PUBLIC_ORIGIN}${path}`, {
     method: "POST",
@@ -356,6 +361,28 @@ describe("POST /api/employees", () => {
       appPool,
     );
     expect(badCsrf.status).toBe(403);
+  });
+
+  it("accepts the configured Host and refuses a foreign one with 403 (S5, slice 5 R I-2)", async () => {
+    for (const host of ["evil.example.test", "hr.example.test:8443"]) {
+      const refused = await handleEmployeeCreate(
+        post("/api/employees", validBody({ code: "E-2090" }), { host }),
+        appPool,
+      );
+      expect(refused.status, host).toBe(403);
+      expect((await refused.json()) as unknown).toEqual({ error: "forbidden" });
+    }
+    const list = await listEmployeesForHr(appPool, adminPrincipal);
+    if (list.kind !== "ok") {
+      throw new Error("expected the HR list");
+    }
+    expect(list.data.map((row) => row.code)).not.toContain("E-2090");
+
+    const accepted = await handleEmployeeCreate(
+      post("/api/employees", validBody({ code: "E-2090" }), { host: "hr.example.test" }),
+      appPool,
+    );
+    expect(accepted.status).toBe(200);
   });
 
   it("answers an anonymous caller with 401 and never a redirect", async () => {
