@@ -96,8 +96,9 @@ no `VOLUME`, and the pinned base declares none), no writable cache or temp mount
 unprivileged `node` user, one Node process (`--max-old-space-size=512` limits old-space only, not
 total memory), and the listener `0.0.0.0:3000` published only on `127.0.0.1:3001`. The
 read-only root filesystem and these limits are applied by the run command above; the image does
-not enforce them itself. `RESOURCE_TESTS.md` records the 5-minute local-Docker smoke that was
-run. The spec §8 20-minute resource gate was **not** run: NOT VERIFIED.
+not enforce them itself. The only load check planned is slice 5's 5-minute local-Docker smoke;
+its result belongs in `RESOURCE_TESTS.md`, and this file does not restate it. The spec §8
+20-minute resource gate was **not** run: NOT VERIFIED.
 
 ## Health checks
 

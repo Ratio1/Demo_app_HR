@@ -60,9 +60,11 @@ of the shared development server, not a production trust root (`DEPLOY.md`).
 ## NOT VERIFIED
 
 - The spec §8 resource gate (20 minutes, 200 employees / 2,000 leave requests, p95 and peak
-  memory). Only a 5-minute local-Docker smoke was run (`RESOURCE_TESTS.md`).
-- Image, secret and SAST scans and authenticated DAST (D8 replaced them with `npm audit` and an
-  SBOM, whose results are in `RESOURCE_TESTS.md` and `sbom.cdx.json`).
+  memory). The only load check is slice 5's 5-minute local-Docker smoke, recorded in
+  `RESOURCE_TESTS.md`, and it is not that gate.
+- Image, secret and SAST scans and authenticated DAST. D8 replaced them with `npm audit` and a
+  CycloneDX SBOM, produced by slice 5 part S (`RESOURCE_TESTS.md` "Dependency audit",
+  `sbom.cdx.json`). Their outcome is not restated here.
 - The OWASP ASVS 5.0.0 Level 2 mapping. This page replaces it (D8); no ASVS ids are claimed.
 - R1DB / CockroachDB compatibility (not reachable from the development machine; D3).
 - Two replicas, database outage and recovery, SIGTERM drain, and a non-loopback `http://` origin
