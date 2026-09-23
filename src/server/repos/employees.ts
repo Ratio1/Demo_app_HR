@@ -277,6 +277,12 @@ export async function countActiveEmployees(client: PoolClient): Promise<number> 
   return Number(result.rows[0]?.total ?? "0");
 }
 
+/** Every employee row, active or not — `manage seed-demo`'s non-empty check (spec §9). */
+export async function countEmployees(client: PoolClient): Promise<number> {
+  const result = await client.query<{ total: string }>("SELECT count(*) AS total FROM employees");
+  return Number(result.rows[0]?.total ?? "0");
+}
+
 export interface DepartmentCount {
   readonly department: string;
   readonly count: number;

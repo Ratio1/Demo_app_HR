@@ -25,6 +25,7 @@ import {
   resetPassword,
   setOrigin,
 } from "../server/services/accounts.ts";
+import { seedDemo } from "../server/services/seed.ts";
 import { PromptError, askNewPassword, createPrompter, type Prompter } from "./prompt.ts";
 
 const EXIT_OK = 0;
@@ -43,6 +44,7 @@ function usage(): void {
   console.error("  create-user --role hr_admin|employee [--email <address>] [--employee <code>]");
   console.error("  reset-password <email>             set a new password and revoke that account's sessions");
   console.error("  disable-user <email>               deactivate an account (never the last active HR admin)");
+  console.error("  seed-demo [--force]                fictional employees + leave history; no accounts, no passwords");
   console.error("");
   console.error(
     "Credentials come from DB_SERVER, DB_PORT, DB_USER, DB_PASSWORD and DB_NAME; every command here needs the '_owner' role.",
@@ -291,6 +293,27 @@ const disableUserCommand: Command = async (args) => {
   });
 };
 
+const seedDemoCommand: Command = async (args) => {
+  // A dedicated, minimal parse rather than `parseArgs`: this is the one command with a
+  // value-less flag, and `parseArgs` refuses any `--name` that is not followed by a value.
+  const force = args.includes("--force");
+  const rest = args.filter((argument) => argument !== "--force");
+  if (rest.length > 0) {
+    console.error("usage: seed-demo [--force]");
+    return EXIT_USAGE;
+  }
+
+  return withOwnerPool(async (pool) => {
+    const result = await seedDemo(pool, { force, correlationId: newCorrelationId() });
+    console.log(
+      `seed-demo: created ${result.employeesCreated} employees and ${result.leaveRequestsCreated} leave requests ` +
+        `(${result.leaveRequestsCancelled} cancelled, the rest pending) starting at ${result.startingCode}; ` +
+        "no account and no password were created",
+    );
+    return EXIT_OK;
+  });
+};
+
 const COMMANDS: Readonly<Record<string, Command>> = {
   migrate,
   bootstrap: bootstrapCommand,
@@ -298,6 +321,7 @@ const COMMANDS: Readonly<Record<string, Command>> = {
   "create-user": createUserCommand,
   "reset-password": resetPasswordCommand,
   "disable-user": disableUserCommand,
+  "seed-demo": seedDemoCommand,
 };
 
 export async function main(argv: readonly string[]): Promise<number> {

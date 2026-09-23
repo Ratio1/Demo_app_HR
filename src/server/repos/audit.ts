@@ -17,8 +17,9 @@ import type { PoolClient } from "../db/pool.ts";
  * The closed action vocabulary. Slice 1 wrote the account, session and settings actions; slice 2
  * added the four employee actions and `leave.cancel`, which the deactivation cascade writes once
  * per pending request it cancels; slice 3 adds `leave.submit`, `leave.approve` and
- * `leave.reject`, and makes `leave.cancel` the owner's withdrawal as well. Later slices extend
- * the list; nothing else is written.
+ * `leave.reject`, and makes `leave.cancel` the owner's withdrawal as well. Slice 5 adds `seed`,
+ * written once per row `manage seed-demo` creates, always under `SEED_SYSTEM_ACTOR_ID`. Later
+ * slices extend the list; nothing else is written.
  *
  * **What is audited.** Every *effective* mutation, with `outcome: 'ok'`, in its own transaction —
  * and, in slice 3, one extra `denied` row: a refused self-approval (`leave.approve` /
@@ -43,10 +44,20 @@ export const AUDIT_ACTIONS = [
   "login",
   "logout",
   "password.change",
+  "seed",
   "settings.set_origin",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+/**
+ * The fixed actor `manage seed-demo` writes every audit row under (spec §5.2 / O4). It is a
+ * syntactically valid v4 UUID that deliberately has **no** `accounts` row: `actor_account_id`
+ * carries no foreign key (see `migrations/0001_init.sql`), which is what lets seeded, decided-
+ * looking history exist with zero accounts and zero credentials (D5.3) — `bootstrap` still sees
+ * an empty `accounts` table afterwards and can run. Named in `SECURITY.md`.
+ */
+export const SEED_SYSTEM_ACTOR_ID = "00000000-0000-4000-8000-000000000001";
 
 /** `ok` for a completed action, `denied` for a refused one, `error` for a failed one. */
 export const AUDIT_OUTCOMES = ["ok", "denied", "error"] as const;
