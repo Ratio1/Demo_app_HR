@@ -30,7 +30,10 @@ from util-linux 2.39.3, against the app's own `hr_test` database (never `hr`, ne
    with a bash string match against the log's full contents, never a `grep` invocation that would
    have put the password on a child process's own command line). The password was written once to
    a `0600` scratch file for the login step below and `shred -u`'d immediately after use; it was
-   never printed, logged, or placed in a command-line argument.
+   never printed, logged, or placed in a command-line argument. That early shred is also why the
+   server-log check in step 10 compared against an empty value and could not fail (slice 5 closing
+   review, I-3). The script now keeps the file until that check has run, shreds it afterwards and
+   in `cleanup`, and fails when there is nothing to compare against; it has not been re-run since.
 5. `manage.mjs seed-demo` → `created 12 employees and 30 leave requests (15 cancelled, the rest
    pending) starting at E-2001; no account and no password were created`.
 6. Started the image **read-only**, `--cpus=0.5 --memory=1g --memory-swap=1g`,
@@ -43,8 +46,8 @@ from util-linux 2.39.3, against the app's own `hr_test` database (never `hr`, ne
 9. Five minutes (300 s) of `curl` traffic, ~1 request/second, cycling `/`, `/directory`, `/leave`,
    `/approvals` with the session cookie.
 10. Recorded `docker stats`, `/sys/fs/cgroup/memory.peak`, `docker inspect` (read-only/cpu/memory/
-    restart count/OOM), `docker diff`, and `docker logs` (leak check), then tore the container
-    down (`docker rm -f`).
+    restart count/OOM), `docker diff`, and `docker logs` (leak check; vacuous in this run, see
+    step 4), then tore the container down (`docker rm -f`).
 
 ## Results
 
@@ -60,7 +63,7 @@ from util-linux 2.39.3, against the app's own `hr_test` database (never `hr`, ne
 | `NanoCpus` / `Memory` / `MemorySwap` | `500000000` (0.5 CPU) / `1073741824` / `1073741824` (1 GiB, no swap headroom) — matches `--cpus=0.5 --memory=1g --memory-swap=1g` exactly |
 | `RestartCount` / `OOMKilled` | `0` / `false` |
 | `docker diff` after the run | empty (no filesystem writes despite `--read-only`) |
-| Secret bytes in `bootstrap.log` / server `docker logs` | `0` / `0` |
+| Secret bytes in `bootstrap.log` / server `docker logs` | `bootstrap.log`: `0`; server log: NOT VERIFIED (check was vacuous; fixed script not yet re-run) |
 
 269/269 requests returned `200`; 0 unexpected 5xx, timeouts, restarts, or OOM kills. Peak memory
 (≈123 MiB) is well inside the 1 GiB cap and inside the spec's 850 MiB gate threshold too, but this

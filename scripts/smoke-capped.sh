@@ -23,7 +23,11 @@
 # raw-mode toggle and can echo a password to the container's own log (see go-live-report.md's
 # attempt 1). Every check below reads the secret only into a shell variable or a 0600 file, and
 # every log is searched with a bash string match, never a `grep` invocation that would put the
-# secret on a child process's own command line.
+# secret on a child process's own command line. The 0600 file is kept until the server-log check
+# at the end has compared against it, then shredded; `cleanup` shreds it on every other exit. A
+# leak check with nothing to compare against fails instead of passing (slice 5 R, I-3).
+#
+# `cleanup` also deletes the two hr_test credential files this script writes (slice 5 R, m3).
 #
 # Run from anywhere; paths are resolved from this file's location.
 set -uo pipefail
@@ -43,7 +47,11 @@ FAIL=0
 cleanup() {
   docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
   docker rm -f "${CONTAINER}-bootstrap" >/dev/null 2>&1 || true
+  if [ -e "$SCRATCH/smoke.pw" ]; then
+    shred -u "$SCRATCH/smoke.pw" 2>/dev/null || rm -f "$SCRATCH/smoke.pw"
+  fi
   rm -rf "$SCRATCH"
+  rm -f "$APP_DIR/.env.smoke.local" "$APP_DIR/.env.smoke.owner.local"
 }
 trap cleanup EXIT
 
@@ -153,7 +161,7 @@ LOGIN_STATUS="$(curl -s -o /dev/null -w '%{http_code}' -b "$COOKIES" -c "$COOKIE
   --data-urlencode "csrf=$LOGIN_CSRF" \
   --data-urlencode "password@$SCRATCH/smoke.pw" \
   "$ORIGIN/api/login")"
-shred -u "$SCRATCH/smoke.pw" 2>/dev/null || rm -f "$SCRATCH/smoke.pw"
+# smoke.pw is deliberately kept: the server-log leak check at the end compares against it.
 if [ "$LOGIN_STATUS" != "303" ]; then
   fail "login returned $LOGIN_STATUS, expected 303"
   exit 1
@@ -202,7 +210,10 @@ echo "smoke: server log leak check"
 docker logs "$CONTAINER" >"$SCRATCH/server.log" 2>&1
 SERVER_LOG_TEXT="$(cat "$SCRATCH/server.log")"
 ADMIN_PW_CHECK="$(cat "$SCRATCH/smoke.pw" 2>/dev/null || true)"
-if [ -n "$ADMIN_PW_CHECK" ] && [[ "$SERVER_LOG_TEXT" == *"$ADMIN_PW_CHECK"* ]]; then
+shred -u "$SCRATCH/smoke.pw" 2>/dev/null || rm -f "$SCRATCH/smoke.pw"
+if [ -z "$ADMIN_PW_CHECK" ]; then
+  fail "server log leak check has no comparison value (the password file is missing or empty)"
+elif [[ "$SERVER_LOG_TEXT" == *"$ADMIN_PW_CHECK"* ]]; then
   fail "the password appeared in the server log"
 else
   echo "smoke: 0 secret bytes in server log"
