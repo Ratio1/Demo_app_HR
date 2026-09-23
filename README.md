@@ -29,21 +29,46 @@ them from the directory and cancels their pending leave, all in one transaction.
 HR administrator cannot be removed. Leave durations are **illustrative Monday-Friday counts**,
 not entitlements (no holidays, accrual or payroll).
 
-## Configuration: five variables, nothing else
+## Production environment — minimal
 
-| Variable | Meaning |
-|---|---|
-| `DB_SERVER` | `host` or `host:port`; bracket IPv6 literals (`[::1]:5432`). No URL, no query string, no TLS options. |
-| `DB_PORT` | Optional, default `5432`. Leave it unset when `DB_SERVER` carries a port; two different ports refuse to start. An empty value is refused too. |
-| `DB_USER` | The runtime role (`…_app`) to serve, the owner role (`…_owner`) for every `manage` command. |
-| `DB_PASSWORD` | Never logged, never echoed, never a command-line argument. |
-| `DB_NAME` | An existing, dedicated database. |
+A production deployment supplies exactly these five variables. The server reads them with the
+runtime role; every `manage` command reads them with the owner role.
 
-There is no `DATABASE_URL`, no signing secret, no `APP_URL` and no `PORT` variable (operator
-decision D3). The public origin is stored in the database (`manage bootstrap` / `set-origin`).
-The listener is fixed at `0.0.0.0:3000` inside the container. [`.env.example`](.env.example)
-lists the five names. Real values go only in git-ignored files written by a tool, never in a
-commit.
+| Variable | Example | Rule |
+|---|---|---|
+| `DB_SERVER` | `db.example.test` or `db.example.test:5432` | `host` or `host:port`; bracket IPv6 literals (`[::1]:5432`). No URL, no query string, no TLS options. |
+| `DB_PORT` | `5432` | Optional, default `5432`. Leave it unset when `DB_SERVER` carries a port; two different ports, or an empty value, refuse to start. |
+| `DB_USER` | `hr_app` to serve; `hr_owner` for `migrate` (and every other `manage` command) | Serving uses the DML-only runtime role; `manage` refuses any user that does not end in `_owner`. |
+| `DB_PASSWORD` | `<secret>` | The only secret. Never logged, never echoed, never a command-line argument. |
+| `DB_NAME` | `hr` | An existing, dedicated database. |
+
+No other variable exists: no `DATABASE_URL`, no `APP_URL`, no signing or session secret, and no
+secret besides `DB_PASSWORD` (operator decision D3). The public origin is stored in the
+database, not in the environment (`manage.mjs bootstrap` / `set-origin`). It must be the exact
+origin the browser has open: behind Cloudflare that is `https://…`, e.g.
+`https://hr.example.test`, even though the app itself speaks plain HTTP (D10).
+[`.env.example`](.env.example) lists the five names. Real values go only in git-ignored files,
+never in a commit.
+
+**Listener settings are fixed, not configuration.** `HOSTNAME=0.0.0.0`, `PORT=3000`,
+`NODE_ENV=production` and `NEXT_TELEMETRY_DISABLED=1` are shipped defaults in the `Dockerfile`
+(`ENV`). The WAR source build below does not use the Dockerfile, so its start command must set
+all four explicitly, inline. `HOSTNAME` is the one that bites: Docker sets it to the container
+ID in every container, and the standalone `server.js` listens on `$HOSTNAME`, falling back to
+`0.0.0.0` only when it is unset. (`server.js` also defaults `PORT` to `3000` and forces
+`NODE_ENV=production`; `NEXT_TELEMETRY_DISABLED` has no code default.) Keep them out of the
+deployment's environment: `NODE_ENV=production` there would make `npm ci` skip the dev
+dependencies the build needs.
+
+**The database CA is a file, not a variable.** The pool connects with TLS chain and hostname
+verification (`rejectUnauthorized: true`, `servername` = the `DB_SERVER` host) and trusts only
+the CA it reads from `certs/dev-ca.crt`. That name is fixed in code (`src/server/db/pool.ts`)
+whatever database the CA belongs to, and it is resolved against the working directory.
+`certs/*.crt` is git-ignored, so a fresh checkout does not have it: a production checkout must
+provide the **production database CA** at that path. Either commit it on the branch the
+deployment builds from (`git add -f certs/dev-ca.crt`; a CA certificate is public, never a key),
+or have a build command write the PEM to that path. The database server's certificate must name
+the `DB_SERVER` host. The dev CA used locally is not a production trust root.
 
 ## Local run (the pipeline runs this, not you)
 
@@ -68,7 +93,8 @@ docker run -d --name demo-hr-live --restart unless-stopped --read-only --cpus=0.
 Then open `http://127.0.0.1:3001`.
 
 - The dev CA is copied into the build context and baked into the image; it is git-ignored and is
-  a public certificate, never a key. See `DEPLOY.md` for what a non-dev build needs instead.
+  a public certificate, never a key. A production build needs the production database CA
+  instead: see "Production environment — minimal" above and `DEPLOY.md`.
 - `bootstrap` asks at hidden prompts for the first administrator's email, a password (twice,
   15-128 characters) and the public origin (`http://127.0.0.1:3001` here). Under D9 the pipeline
   answers those prompts through a pseudo-terminal with **generated one-time passwords** and hands
@@ -158,9 +184,11 @@ design document says `404`; see "Deviations" in `REVIEW.md`. They are not test f
 ## The `manage` CLI
 
 The CLI ships inside the image as `/app/manage.mjs`. The image's entrypoint is `node`, so
-`docker run --rm [-it] --env-file <owner env file> <image> manage.mjs <command>` runs it. Every
-command needs the **owner** role (`DB_USER` ending in `_owner`). It refuses the runtime role, and
-passwords are only ever typed at a hidden prompt, never passed as arguments.
+`docker run --rm [-it] --env-file <owner env file> <image> manage.mjs <command>` runs it. From a
+built checkout (`npm ci && npm run build:cli`) it is `node dist/cli/manage.mjs <command>`, run
+from the repository root: it reads `certs/dev-ca.crt` and `migrations/` relative to the working
+directory. Every command needs the **owner** role (`DB_USER` ending in `_owner`). It refuses the
+runtime role, and passwords are only ever typed at a hidden prompt, never passed as arguments.
 
 | Command | Does |
 |---|---|
@@ -175,13 +203,93 @@ passwords are only ever typed at a hidden prompt, never passed as arguments.
 Not provided, deferred by operator decision D8: `cleanup`, `export-subject`, `erase-subject`,
 `reset-demo`, and a host-side `scripts/manage` wrapper.
 
-## Deployment
+## Base image
 
-Real Ratio1 WAR / Deeploy deployment and tunnel setup are done externally and are out of scope
-for this repository's development process (operator decisions D3 and D4). In production, TLS
-terminates at Cloudflare and the app itself speaks plain HTTP (D10). `DEPLOY.md` lists what an
-external deployment needs: build and run commands, port `3000`, the five variables, migrate
-before serve, the health endpoints, and the CA bundle.
+`node:24-bookworm-slim`, pinned by digest in the `Dockerfile` (`ARG BASE`, used by both stages):
+
+```text
+node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
+```
+
+It carries Node 24.21.0 and npm 11.19.0, and no `git`. WAR's `image` field takes the tag,
+`node:24-bookworm-slim`. The runner source passes a `tag@sha256:…` reference to `docker pull`
+unchanged, but a digest-pinned WAR deployment has not been tried: NOT VERIFIED. With the tag
+alone, WAR pulls whatever the tag points to at every container start (`image_pull_policy`
+defaults to `always`).
+
+## Ratio1 WAR (source build)
+
+WAR does not run the Dockerfile. It clones the configured branch into `/app` of a plain `image`
+container (installing `git` first if the image lacks it), then runs `cd /app && <entry>` for
+every `build_and_run_commands` entry, chained with `&&` in one `sh -c`, as root. Every restart is
+a fresh container, clone and build. Values for the Ratio1 SDK's
+`Session.create_worker_web_app`:
+
+| Field | Value |
+|---|---|
+| `image` | `"node:24-bookworm-slim"` |
+| `vcs_data` | `{"PROVIDER": "github", "REPO_OWNER": "Ratio1", "REPO_NAME": "Demo_app_HR", "BRANCH": "<branch>", "USERNAME": "<github user>", "TOKEN": "<github token>"}`; required by the SDK. The runner source also accepts `REPO_URL` and labels `REPO_OWNER`/`REPO_NAME` legacy support. The branch must provide `certs/dev-ca.crt` (see above). |
+| `port` | `3000` |
+| `env` | `{"DB_SERVER": "db.example.test", "DB_PORT": "5432", "DB_USER": "hr_app", "DB_PASSWORD": "<secret>", "DB_NAME": "hr"}`: the runtime role, nothing else |
+| `build_and_run_commands` | The list below, in order |
+| `container_resources` | `{"cpu": 1, "memory": "1g"}` |
+| `volumes`, `file_volumes` | `{}` (empty) |
+
+Tunnel, node and GitHub credentials are the deployer's platform settings, never application
+`env`.
+
+```python
+build_and_run_commands = [
+    "env -u DB_SERVER -u DB_PORT -u DB_USER -u DB_PASSWORD -u DB_NAME npm ci --no-audit --no-fund",
+    "env -u DB_SERVER -u DB_PORT -u DB_USER -u DB_PASSWORD -u DB_NAME npm run build",
+    "cp -r public .next/standalone/public",
+    "cp -r .next/static .next/standalone/.next/static",
+    "mkdir -p .next/standalone/certs && cp certs/dev-ca.crt .next/standalone/certs/dev-ca.crt",
+    "HOSTNAME=0.0.0.0 PORT=3000 NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 node --max-old-space-size=512 .next/standalone/server.js",
+]
+```
+
+- **1-2** are the Dockerfile's build stage. `npm run build` is `next build && npm run build:cli`:
+  the standalone server lands in `.next/standalone/`, the `manage` CLI in `dist/`. WAR sets `env`
+  on the container, so every command would inherit the database credentials; `env -u` keeps them
+  out of the install and the build (spec §8). The build needs no database either way.
+- **3-5** put next to the server what the Dockerfile's runtime stage copies: `public/`,
+  `.next/static/` and the CA. The CA goes inside `.next/standalone/` because the generated
+  `server.js` changes its working directory to its own (`process.chdir(__dirname)`) and the CA
+  path resolves against the working directory. The server never reads `dist/` or `migrations/`.
+- **6** is the image's `CMD` plus its four `ENV` listener settings, inline, started from `/app`:
+  one Node process, old-space capped at 512 MiB directly.
+- **Resources.** The spec's serving envelope is 0.5 CPU and 1 GiB. The runner source converts
+  `cpu` with `float()`, but no fractional value has been applied on a node: NOT VERIFIED, hence
+  `1`. The build runs in the same container under the same limits; its peak memory under a
+  1 GiB cap has not been measured.
+
+**Migrations and first-time setup never run in the serving container.** Serving uses the
+DML-only `hr_app` role, and `/health/ready` answers `503` until the newest migration
+(`0002_tighten_grants`) is journalled **and** `bootstrap` has created the settings row. Run the
+steps below with the **owner** variables (`DB_USER=hr_owner`, the other four unchanged) from any
+machine that reaches the database, in one of two ways:
+
+- a checkout of the deployed commit: `npm ci --no-audit --no-fund && npm run build:cli`, the CA
+  at `certs/dev-ca.crt`, then `node dist/cli/manage.mjs <command>` from the repository root, with
+  the owner variables in its environment (never on the command line);
+- the Docker image: `docker run --rm [-it] --env-file <owner-env-file> <image> manage.mjs <command>`.
+
+1. `migrate`: once before the first serve, and again after every upgrade, before the new version
+   serves. Safe to re-run; it then verifies the tables and the runtime role's exact grants.
+2. `bootstrap`: once. It creates the first HR admin and stores the public origin, at hidden
+   prompts. It needs an interactive terminal and refuses without one, so it cannot run inside
+   WAR's non-interactive exec.
+3. `set-origin https://<public host>`: whenever the public name changes. The value must be the
+   exact browser-facing origin, e.g. `https://hr.example.test` (D10); a mismatch makes every
+   sign-in and every change fail.
+
+`migrate` could also run as a separate one-off WAR deployment with the owner variables; that has
+not been tried.
+
+This section documents facts read from this repository's code and from the Ratio1 SDK and
+edge-node source. Real WAR deployment is out of scope (operator decision D3) and none of it has
+been run: NOT VERIFIED.
 
 ## License
 

@@ -79,7 +79,9 @@ never committed. Both `.env*` forms are git-ignored and excluded from the build 
 environment variables (operator decision D3): `DB_SERVER`, `DB_PORT` (optional), `DB_USER`,
 `DB_PASSWORD`, `DB_NAME`. There is no `DATABASE_URL`, no `APP_URL`, no `PORT` and no signing
 secret. `PORT=3000`, `HOSTNAME=0.0.0.0`, `NODE_ENV=production` and
-`NEXT_TELEMETRY_DISABLED=1` are baked into the image; they are not operator settings.
+`NEXT_TELEMETRY_DISABLED=1` are baked into the image; they are not operator settings. A source
+build that bypasses the Dockerfile sets them inline in its start command (`README.md`, "Ratio1
+WAR (source build)").
 
 `README.md` has the full pipeline-driven sequence, including `seed-demo`.
 
@@ -125,6 +127,13 @@ certificate fetched at run time. The code reads it from `certs/dev-ca.crt` relat
 directory (`/app` in the image). `certs/*.crt` is git-ignored. The file is copied into the build
 context before `docker build`.
 
+A source build (WAR) has no Dockerfile step to place it. The file must be in the checkout:
+committed with `git add -f certs/dev-ca.crt` on the branch WAR clones, or written there by a build
+command. It must also be copied to `.next/standalone/certs/dev-ca.crt`, because the generated
+standalone `server.js` changes its working directory to `.next/standalone/`
+(`process.chdir(__dirname)`). The `manage` CLI keeps the directory it is started in and reads
+`certs/dev-ca.crt` and `migrations/` there.
+
 **Every image built from this repository so far is a dev-CA build.** The bundled certificate is
 the machine-local CA of the shared development server (`demo-apps-pg`). It proves "local fixtures
 also use TLS" and it is **not** a production trust root. A build for another database must
@@ -138,33 +147,49 @@ certificate covers `localhost` and `host.docker.internal`.
 | Item | Value |
 |---|---|
 | Application / deployment name | `Demo_App_HR` |
-| Artefact | The Docker image built from this repository's `Dockerfile` (two stages; base `node:24-bookworm-slim` pinned by digest `sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6`) |
-| Build | `docker build -t <tag> .` with the target database's CA at `certs/dev-ca.crt`. The build needs no database and reads no `DB_*` variable. |
-| Start (serve) | Image default: `node --max-old-space-size=512 server.js` in `/app` |
-| Maintenance | `node manage.mjs <command>` in `/app` (same image, owner credentials) |
-| Port | `3000` inside the container, bound on `0.0.0.0`; plain HTTP; keep it private behind the TLS-terminating ingress |
-| Environment | `DB_SERVER`, `DB_PORT` (optional), `DB_USER`, `DB_PASSWORD`, `DB_NAME`, and nothing else |
-| Order | `migrate` (owner role) -> `bootstrap` once, with the public `https://` origin (owner role) -> serve (runtime role) |
-| Health | `GET /health/live`, `GET /health/ready` (`503` until the newest migration is applied) |
+| Artefact | Either the Docker image built from this repository's `Dockerfile` (two stages), or a WAR source build of this repository (`README.md`, "Ratio1 WAR (source build)") |
+| Base image | `node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6` in the `Dockerfile`; WAR `image="node:24-bookworm-slim"` (a digest in WAR's `image` is NOT VERIFIED) |
+| Build | Docker: `docker build -t <tag> .` with the target database's CA at `certs/dev-ca.crt`. WAR: commands 1-5 below. Neither needs a database or reads a `DB_*` variable; the WAR commands strip them. |
+| Start (serve) | Image default: `node --max-old-space-size=512 server.js` in `/app`. WAR: command 6 below, from `/app` |
+| Maintenance | `node manage.mjs <command>` in `/app` (same image), or `node dist/cli/manage.mjs <command>` from the root of a built checkout; owner credentials; never in the serving container |
+| Port | `3000` inside the container, bound on `0.0.0.0`; plain HTTP; keep it private behind the TLS-terminating ingress (WAR `port=3000`) |
+| Environment | `DB_SERVER`, `DB_PORT` (optional), `DB_USER`, `DB_PASSWORD`, `DB_NAME`, and nothing else (WAR `env`: the runtime role). The listener settings come from the image's `ENV`, or inline in the WAR start command. |
+| Order | `migrate` (owner role) -> `bootstrap` once, interactively, with the public `https://` origin (owner role) -> serve (runtime role); `migrate` again after every upgrade, before the new version serves |
+| Health | `GET /health/live`, `GET /health/ready` (`503` until the newest migration is applied and `bootstrap` has run) |
 | Ingress | TLS-terminating; forwards the public hostname as `Host` (mutations with any other `Host` get `403`) |
-| Envelope | 0.5 CPU, 1 GiB, no swap, read-only root filesystem, no volumes |
+| Envelope | Docker run path: 0.5 CPU, 1 GiB, no swap, read-only root filesystem, no volumes, non-root `node` user. WAR sets only `container_resources` (documented `{"cpu": 1, "memory": "1g"}`; fractional CPU NOT VERIFIED) and `volumes`/`file_volumes` (`{}`). |
 | State | All durable state is in the database; the container can be deleted and recreated |
 
-A source-build runner that does not execute the Dockerfile has to reproduce its steps: `npm ci`,
-`npm run build` (Next standalone plus the CLI compile), then serve from a directory holding
-`.next/standalone/*`, `.next/static`, `public/`, `dist/`, `migrations/`, `manage.mjs -> dist/cli/manage.mjs`
-and `certs/dev-ca.crt`, with `NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000`. That path has
-**not** been run: NOT VERIFIED.
+WAR `build_and_run_commands`, identical to `README.md`, run in order in `/app` of the cloned
+branch:
+
+```python
+build_and_run_commands = [
+    "env -u DB_SERVER -u DB_PORT -u DB_USER -u DB_PASSWORD -u DB_NAME npm ci --no-audit --no-fund",
+    "env -u DB_SERVER -u DB_PORT -u DB_USER -u DB_PASSWORD -u DB_NAME npm run build",
+    "cp -r public .next/standalone/public",
+    "cp -r .next/static .next/standalone/.next/static",
+    "mkdir -p .next/standalone/certs && cp certs/dev-ca.crt .next/standalone/certs/dev-ca.crt",
+    "HOSTNAME=0.0.0.0 PORT=3000 NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 node --max-old-space-size=512 .next/standalone/server.js",
+]
+```
+
+The CA is copied into `.next/standalone/` because the generated `server.js` changes its working
+directory to its own. `NODE_ENV` stays out of WAR's `env`: set there, it would make `npm ci` skip
+the build's dev dependencies. `bootstrap` needs an interactive terminal, so it runs from a
+machine that reaches the database, not inside WAR. This path has **not** been run (operator
+decision D3): NOT VERIFIED.
 
 Not provided, and why:
 
 - **`scripts/war-build.sh`, `scripts/war-start.sh`, `scripts/manage`**: dropped by operator
-  decision D8. The Dockerfile and `node manage.mjs` are the single source of the build, start and
-  maintenance commands.
+  decision D8. The Dockerfile (for a source build, the `build_and_run_commands` list above) and
+  `node manage.mjs` are the source of the build, start and maintenance commands.
 - **A reviewed `release` branch, CI-prebuilt artefacts, registry push**: not created. The operator
   owns release promotion (D3/D4).
 - **Build id from the reviewed commit**: `next.config.ts` derives it from `git rev-parse HEAD`,
   but `.git` is excluded from the Docker build context, so image builds use the constant `local`.
+  A source build from a git clone, as WAR does, would take the commit SHA instead.
   Asset consistency across replicas or versions was not tested: NOT VERIFIED.
 - **Two replicas, SIGTERM drain, database outage/recovery, clean redeploy**: not tested in this
   repository. NOT VERIFIED (see `REVIEW.md`).
