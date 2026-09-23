@@ -182,5 +182,23 @@ part S. No screenshots are committed. The WAR scripts and `scripts/manage` were 
 
 ## Closing review (slice 5 part R)
 
-To be appended by the orchestrator: reviewed commit, reviewer model, findings with severity,
-dispositions, and the fix-round result.
+- Reviewed commit: `04d782c` (closing review), fixes reviewed at `5883555` (this file's own
+  commit follows it).
+- Reviewer: `reviewer-security-privacy`, fresh and non-authoring, Opus 5.5 (1M context),
+  `claude-opus-5-5[1m]`, 2026-09-23. Report: `_agents/projects/HR/sdd/slices/slice-5-R-report.md`.
+- Verdict: **needs_fixes → approved after one fix round.** No exploitable path found; 0
+  critical, 4 important, 8 minor.
+- Important findings and dispositions: I-1 `/health/ready` checked only migration `0001` →
+  fixed (`a2f4205`); I-2 no `Host` check on mutations → fixed (`51be3d8`); I-3 the smoke
+  script's server-log secret check could not fail → script fixed (`ea32685`), smoke not re-run,
+  recorded NOT VERIFIED; I-4 stale/overclaiming doc sentences → corrected (`5883555`).
+- Minors fixed in the same round: m1 lockout re-check on the success path (`6dcec5d`), m3
+  smoke env-file cleanup, m4 recursive `.dockerignore` patterns (`88131f4`). Minors deferred:
+  m2, m5, m6, m7, m8 and the m1 residual — listed in `_agents/projects/HR/DEFERRED.md`.
+- Scoped re-review of `04d782c..5883555` (fresh `reviewer-security-privacy`, Opus 5.5 1M):
+  **approved** — all seven findings addressed, no new critical/important breakage.
+- Final live verification by the orchestrator's pipeline on the re-launched container
+  (`demo-hr:live` from `5883555`, migration `0002` applied to `hr`): sign-in 303 + session,
+  overview and `/employees` 200, mutation with a foreign `Host` 403, logout 303.
+- The operator's own local session (D5/D9) is the acceptance; this council does not
+  self-approve it.
