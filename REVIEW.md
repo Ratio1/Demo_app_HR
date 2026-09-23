@@ -9,13 +9,16 @@ this repository.
 
 ## Reviewed commit
 
-- The four documents in this commit (`README.md`, `DEPLOY.md`, `SECURITY.md`, this file) were
-  checked against the code at `636c5486a7cf490b873f483b703cec0794a0a659` (`636c548`, 2026-09-23)
-  and, for `seed-demo`, against `fee2f55` (slice 5 part S). The rest of part S (the capped smoke,
-  `RESOURCE_TESTS.md`, `sbom.cdx.json`) lands separately and was not read here.
-- The closing whole-codebase review (slice 5 part R) reviews the head of `main` after slice 5
-  parts S and D. Its commit and verdict are appended at the end of this file by the orchestrator
-  after it runs. Nothing here pre-states that verdict.
+- `README.md`, `DEPLOY.md`, `SECURITY.md` and this file were last corrected in the slice 5 fix
+  round, against the code at `88131f40cf85762a296eb6dd3d69f441469010be` (`88131f4`, 2026-09-23),
+  the round's last code commit and the tree its test run used. They land in the docs-only commit
+  that immediately follows it; a file cannot name the commit that contains it.
+- Slice 5 part D first wrote them against `636c548` and, for `seed-demo`, `fee2f55`. The rest of
+  part S (the capped smoke, `RESOURCE_TESTS.md`, `sbom.cdx.json`) landed at `04d782c`.
+- The closing whole-codebase review (slice 5 part R) reviewed `04d782c` and returned
+  `needs_fixes` (0 critical, 4 important, 8 minor). The fix round is `a2f4205`..`88131f4` plus
+  the docs commit. The re-review outcome is appended at the end of this file by the
+  orchestrator; nothing here pre-states it.
 
 ## Sessions and models
 
@@ -23,7 +26,8 @@ The build ran under Claude Code. The orchestrator (coordinator) is pinned to `cl
 the meta-repo's `.claude/settings.json`. That stands in for spec §1's `gpt-astra-6-ultra`
 coordinator under the meta-repo's model policy, and a top model is never used as a subagent.
 Session ids were not recorded. Implementer models are copied from each report's header. Reviewer
-models are the role pin (`opus`) the ledger records; no reviewer report states an exact model id.
+models are the role pin (`opus`) the ledger records. The slice 5 closing review is the only
+reviewer report that states an exact model id: Opus 5.5 (1M), `claude-opus-5-5[1m]`.
 
 | Stage | Role | Model actually used | Submodule commits | Evidence |
 |---|---|---|---|---|
@@ -43,10 +47,11 @@ models are the role pin (`opus`) the ledger records; no reviewer report states a
 | Slice 4 tests: DENY suite, Playwright, axe | `test-engineer` | Sonnet 5, `claude-sonnet-5` | `276b840`, `0b23c3e` | `slice-4-tests-report.md` |
 | Slice 4 UI fixes | `frontend` | Sonnet 5, `claude-sonnet-5` | `e231554`, `6c0ec91`, `58fe29a` | `slice-4-ui-fixes-report.md` |
 | Slice 4 fix round | `test-engineer` | Sonnet 5, `claude-sonnet-5` | `d256e61`..`636c548` (6) | `slice-4-fix-report.md` |
-| Slice 5 S: `seed-demo`, capped smoke, audit, SBOM | `test-engineer` | sonnet (role pin) | `fee2f55` onward | its report |
-| Slice 5 D: these four documents | `backend-security` | Opus 5.5 (1M), `claude-opus-5-5[1m]` | this commit | `…/slice-5-D-report.md` |
-| Slice 5 R: closing review | `reviewer-security-privacy` | opus (role pin) | read-only | appended below |
-| Slice 5 L: final re-launch | `test-engineer` | sonnet (role pin) | none | its report |
+| Slice 5 S: `seed-demo`, capped smoke, audit, SBOM | `test-engineer` | Claude Sonnet 5, `claude-sonnet-5` | `fee2f55`, `04d782c` | `slice-5-S-report.md` |
+| Slice 5 D: these four documents | `backend-security` | Opus 5.5 (1M), `claude-opus-5-5[1m]` | `3ec3945`, `6675f5b` | `…/slice-5-D-report.md` |
+| Slice 5 R: closing review | `reviewer-security-privacy` | Opus 5.5 (1M), `claude-opus-5-5[1m]` | read-only (reviewed `04d782c`) | `slice-5-R-report.md` |
+| Slice 5 fix round: readiness, `Host` check, smoke leak check, lockout re-check, docs | `backend-security` | Opus 5.5 (1M), `claude-opus-5-5[1m]` | `a2f4205`..`88131f4` (5) plus the docs commit | `slice-5-fix-report.md` |
+| Slice 5 L: final re-launch | `test-engineer` | sonnet (role pin); not yet run | none | its report |
 
 ### Design council (seat authority, fixed before any council report landed)
 
@@ -72,7 +77,7 @@ meta-repo's `_agents/projects/HR/DEFERRED.md`.
 | 2 | `reviewer-correctness-war`, opus | 1 critical: `Referrer-Policy: no-referrer` made browsers send `Origin: null`, so every native form POST got `403`. 3 important: anonymous `/employees` and `/directory` answered `200`; `/me` overflowed at 390 px; a failed bootstrap container was left running. | Fixed in `80d6f22`, `09a8608`, `fba4e71`, `0a29d61`; re-review approved; 3 minors deferred |
 | 3 | `reviewer-sql-concurrency`, opus | 1 critical: nav icons passed as functions across the RSC boundary, so every signed-in route failed in the container. 1 important: no gate rendered a signed-in route. | Fixed in `62d37a8` plus a container check of six routes; re-review approved |
 | 4 | `reviewer-correctness-war` (fresh seat), opus | 1 critical: `npm test` was red, so e2e never ran through it. 6 important: axe scanned unproven page state; the lockout test under-asserted; the keyboard test checked nothing; the grant probe could not fail (and the grant gap was real); `DEPLOY.md` was missing; `/api/password`'s `429` page. | Fixed in `d256e61`..`636c548`; re-review approved |
-| 5 | `reviewer-security-privacy` (fresh), opus | Pending | Appended below by the orchestrator |
+| 5 | `reviewer-security-privacy` (fresh), Opus 5.5 (1M) | 0 critical. 4 important: `/health/ready` checked only `0001_init`; no `Host` check on mutations; the smoke's server-log secret check could not fail; stale or overclaiming docs. 8 minors. | Fix round `a2f4205`..`88131f4` plus docs; minors m1, m3, m4 fixed there, m2 and m5-m8 left for `DEFERRED.md`. Re-review: appended below by the orchestrator |
 
 ## Operator decisions (one line each)
 
@@ -151,22 +156,24 @@ search route.
 ## Release-gate status (spec §9)
 
 "pass" means an automated or recorded check passed on local PostgreSQL 18, with the evidence
-named. The last full `npm test` run is in `_agents/projects/HR/sdd/slices/slice-4-fix-report.md`
-("Gates"): lint and typecheck clean; unit 207 passed; integration 162 passed plus 2 expected
-fail; Playwright 39 passed. It was run twice, both times with a fresh image build, on the fix
-round's final tree. The only later commits (`c53f501`, `636c548`) change `DEPLOY.md` and a comment
-block in `tests/int/deny.test.ts`. Slice 5 part D did not re-run the suites.
+named. The last full run is the slice 5 fix round's, at `88131f4`
+(`_agents/projects/HR/sdd/slices/slice-5-fix-report.md`): lint and typecheck clean; unit 212
+passed; integration 171 passed plus 2 expected fail; Playwright 39 passed, on a fresh
+`demo-hr:e2e` build. Before it, the closing review's `npm test` at `04d782c` gave 207 / 166 plus
+2 expected fail / 39 (`slice-5-R-report.md`). Slice 4's run (207 / 162 plus 2 / 39) predates
+`fee2f55`, which added `src/server/services/seed.ts`, CLI code and 4 integration tests, and
+`04d782c`, which added the smoke script.
 
 | Gate | Status | What passed | What did not, and why |
 |---|---|---|---|
 | Product | **pass** | Employee create/edit/activate/deactivate, directory and profile, request/cancel/approve/reject, both dashboards: `tests/e2e/journey.spec.ts`, `tests/int/employees.test.ts`, `tests/int/leave.test.ts` | None |
 | Access | **pass** | Two employees plus two HR admins; objects, lists, counts, field and link over-posting, self-approval, inactive accounts, last-admin protection: `tests/int/deny.test.ts` (D-### rows), `tests/int/employees.test.ts`, journey denied paths | D-020/D-036 ratcheted (R-Q). D-016 verified by inspection only (no role-change path exists). D-027 not constructed (argued unreachable): NOT VERIFIED |
-| Security/privacy | **NOT VERIFIED** | CSRF and Origin (`tests/int/auth-routes.test.ts`, journey Origin-less POST); sessions, idle and absolute expiry, rotation, revocation; lockout (`auth-routes.test.ts`, journey); `no-store` and Back after logout (journey); DTO field allowlists (`tests/unit/employees-dto.test.ts`, `leave-dto.test.ts`, `tests/int/employees.test.ts`) | No SQLi/XSS probe tests; no `Host` spoofing test (the app has no `Host` allowlist); forced-reset mode deferred (D8); no sweep of HTML/RSC/logs/browser storage for hidden HR data; CSP not asserted by a test |
+| Security/privacy | **NOT VERIFIED** | CSRF and Origin (`tests/int/auth-routes.test.ts`, journey Origin-less POST); approved `Host` on mutations, foreign `Host` refused (`auth-routes.test.ts`, `tests/int/employees.test.ts`, `tests/unit/auth-primitives.test.ts`); sessions, idle and absolute expiry, rotation, revocation; lockout (`auth-routes.test.ts`, journey); `no-store` and Back after logout (journey); DTO field allowlists (`tests/unit/employees-dto.test.ts`, `leave-dto.test.ts`, `tests/int/employees.test.ts`) | No SQLi/XSS probe tests; `Host` is checked on mutations only, not on GETs; forced-reset mode deferred (D8); no sweep of HTML/RSC/logs/browser storage for hidden HR data; CSP not asserted by a test |
 | SQL | **NOT VERIFIED** | PostgreSQL migrations and exact grants (`tests/int/migrate.test.ts`); overlap and double submission, racing decisions, stale edits (`tests/int/leave.test.ts`, `employees.test.ts`); cascade and audit atomicity; timezone-safe dates (`npm run test:unit:tz`, three zones) | Actual R1DB: NOT VERIFIED (D3; not reachable). Retry on `40001`/`40P01`: deferred (D8). Recovery: not tested. The concurrency tests assert outcomes, not proven contention |
 | Deploy | **NOT VERIFIED** | DB-free image build (every `docker build`); five-variable start, read-only and capped (`go-live-report.md`, `tests/e2e/global-setup.ts`); DML-only serving (`migrate.test.ts`); TLS refusal on the wrong CA (`tests/int/pool-tls.test.ts`, spike S0); hydration under the CSP in a real browser (journey) | TLS outage/restart and two replicas with same-build assets: NOT VERIFIED. Real WAR HTTPS, isolation and CSP on a node: OUT OF SCOPE (D3/D4) |
-| Resources/state | **NOT VERIFIED** | Exact app name `Demo_App_HR` (UI title, docs); local-Docker cgroup limits (cpu.max 50000/100000, memory.max 1 GiB, swap 0, zero mounts, uid 1000: spike S5, `_agents/projects/HR/spikes/S5-readonly-fs.md`) | The §8 20-minute workload and peak-memory gate: NOT VERIFIED. Slice 5's 5-minute smoke is the only load check; its result is `RESOURCE_TESTS.md`'s, not this file's. Clean redeploy and state recovery: evidence is the slice-5 re-launch report, not this file. WAR 0.5-core/1-GiB/zero-volume deployment: OUT OF SCOPE (D3) |
-| Quality | **NOT VERIFIED** | All critical and important review findings fixed (table above); lower-severity findings listed in `DEFERRED.md` | `npm audit --omit=dev` and the CycloneDX SBOM come from slice 5 part S (evidence: `RESOURCE_TESTS.md` "Dependency audit", `sbom.cdx.json`). They were not produced when this file was written, so no outcome is claimed here. Image, secret and SAST scans and authenticated DAST: NOT VERIFIED (D8). CI-based scanning: OUT OF SCOPE (D4) |
-| Design/review | **NOT VERIFIED** | axe: zero serious/critical violations in 26 scans (7 routes, both roles, 390x844 and 1440x900) plus keyboard checks on `/leave` and `/approvals` (`tests/e2e/a11y.spec.ts`, `slice-4-tests-report.md`) | The every-state x viewport matrix was deferred (D8). The design council's sign-off on the final commit was replaced by the operator's session (D8). The closing code review is pending |
+| Resources/state | **NOT VERIFIED** | Exact app name `Demo_App_HR` (UI title, docs); local-Docker cgroup limits (cpu.max 50000/100000, memory.max 1 GiB, swap 0, zero mounts, uid 1000: spike S5, `_agents/projects/HR/spikes/S5-readonly-fs.md`) | The §8 20-minute workload and peak-memory gate: NOT VERIFIED. Slice 5's 5-minute smoke is the only load check and it ran (`RESOURCE_TESTS.md`: 269 requests, 0 non-200, peak memory ≈123 MiB under a 1 GiB cap; its server-log secret check was vacuous, so that line is NOT VERIFIED). Clean redeploy and state recovery: pending, because slice 5 part L (the re-launch) has not run. WAR 0.5-core/1-GiB/zero-volume deployment: OUT OF SCOPE (D3) |
+| Quality | **NOT VERIFIED** | All critical and important review findings fixed (table above); lower-severity findings listed in `DEFERRED.md` | `npm audit --omit=dev` found 0 vulnerabilities. The CycloneDX SBOM (`sbom.cdx.json`, CycloneDX 1.5, 24 components) was produced **only with `--omit=dev`**; the full-tree `npm sbom` fails with `ESBOMPROBLEMS`, so a complete SBOM is NOT VERIFIED (`RESOURCE_TESTS.md` "Dependency audit"). Image, secret and SAST scans and authenticated DAST: NOT VERIFIED (D8). CI-based scanning: OUT OF SCOPE (D4) |
+| Design/review | **NOT VERIFIED** | axe: zero serious/critical violations in 26 scans (7 routes, both roles, 390x844 and 1440x900) plus keyboard checks on `/leave` and `/approvals` (`tests/e2e/a11y.spec.ts`, `slice-4-tests-report.md`) | The every-state x viewport matrix was deferred (D8). The design council's sign-off on the final commit was replaced by the operator's session (D8). The closing code review ran (`needs_fixes`); its fix round is done and the re-review is pending |
 
 Other §9 deliverables: source and lockfile, Dockerfile and `.dockerignore`, migrations,
 `.env.example` (five placeholders, D3), tests, and these four documents are in this repository.

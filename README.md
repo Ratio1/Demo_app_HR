@@ -149,7 +149,8 @@ npm --prefix Demo_app_HR test          # test:unit, then test:int, then test:e2e
 | `npm test` | The three above, in order, stopping at the first failure |
 
 Never run `test:int` and `test:e2e` at the same time: both reset `hr_test`. The last full green
-run (`npm test`, 2026-09-23) reported 207 unit tests passed; 162 integration tests passed plus
+run (2026-09-23, the slice 5 fix round at `88131f4`: lint, typecheck, then the three steps of
+`npm test`) reported 212 unit tests passed; 171 integration tests passed plus
 **2 expected fail**; 39 Playwright tests passed. The two expected failures are deliberate
 ratchets (`it.fails`) for access-matrix rows D-020 and D-036. The code answers `403` where the
 design document says `404`; see "Deviations" in `REVIEW.md`. They are not test failures.
@@ -165,7 +166,7 @@ passwords are only ever typed at a hidden prompt, never passed as arguments.
 |---|---|
 | `migrate` | Applies the numbered `migrations/*.sql` files, each in one transaction, journalled in `schema_migrations`; then verifies the seven tables and the runtime role's exact grants. Safe to re-run. |
 | `bootstrap` | Creates the first HR administrator and stores the public origin, in one transaction (hidden prompts; needs `-it`). |
-| `set-origin <url>` | Replaces the public origin every mutation's `Origin` header is compared against (`http://` or `https://`, scheme and authority only). |
+| `set-origin <url>` | Replaces the public origin every mutation's `Origin` and `Host` headers are compared against (`http://` or `https://`, scheme and authority only). |
 | `create-user --role hr_admin\|employee [--email <address>] [--employee <code>]` | Creates an account and optionally links it to an employee record. `employee` requires `--employee`. A missing, already-linked or deactivated record is refused. |
 | `reset-password <email>` | Sets a new password at a hidden prompt and revokes that account's sessions. |
 | `disable-user <email>` | Deactivates an account and revokes its sessions; never the last active HR admin. |

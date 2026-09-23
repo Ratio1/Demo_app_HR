@@ -42,9 +42,14 @@ with exact string equality (`checkOrigin`). The session and CSRF cookies are min
   in to, with no validation error anywhere: `set-origin` accepts the value, the app starts,
   `/health/ready` reports `ready`, and every login attempt simply fails to keep a session.
   **Do not store a non-loopback `http://` origin.**
-- The app never derives its origin from `Host` or `X-Forwarded-*`, and must not be changed to. It
-  also does not validate `Host` itself (see `SECURITY.md`, S5), so the ingress in front of it must
-  forward only the approved public hostname and keep the container port private.
+- The app never derives its origin from `Host` or `X-Forwarded-*`, and must not be changed to.
+  It does **compare** `Host`: every mutation's `Host` header must equal the host (and port, if
+  any) of the stored origin exactly, or the request is refused with `403` (`checkHost`;
+  `SECURITY.md`, S5). `X-Forwarded-Host` is never read.
+- **The ingress must forward the public hostname as `Host`.** That is believed to be
+  Cloudflare's and `cloudflared`'s default. A tunnel `httpHostHeader` override, or any proxy
+  that rewrites `Host` to the container's own address, leaves pages loading but makes every
+  sign-in and every change fail with `403`. Keep the container port private as well.
 
 ## Building and running the single image, locally
 
@@ -82,12 +87,12 @@ secret. `PORT=3000`, `HOSTNAME=0.0.0.0`, `NODE_ENV=production` and
 
 Migrations run **once, outside serving, with the owner role** (`…_owner`); the server runs with
 the DML-only runtime role (`…_app`) and never runs DDL. On every new image, run `manage.mjs
-migrate` with the owner credentials **before** starting the new server. `/health/ready` only
-checks that `0001_init` is journalled, so it does **not** catch a database that is missing a
-later migration. Example: `0002_tighten_grants`, which narrows the runtime role's grants, reaches
-the live `hr` database only when `migrate` is run against it with the new image. `migrate`
-verifies the seven tables and the runtime role's exact grants after it applies anything, and
-exits non-zero if either is wrong.
+migrate` with the owner credentials **before** starting the new server. `/health/ready` requires
+the newest migration the image ships (`REQUIRED_MIGRATION_ID`, currently `0002_tighten_grants`)
+to be journalled, so a new image in front of an unmigrated database answers `503 not_ready`
+until `migrate` has run. A database that has already applied a newer migration stays ready.
+`migrate` verifies the seven tables and the runtime role's exact grants after it applies
+anything, and exits non-zero if either is wrong.
 
 ### The container envelope (spec §8)
 
@@ -96,15 +101,16 @@ no `VOLUME`, and the pinned base declares none), no writable cache or temp mount
 unprivileged `node` user, one Node process (`--max-old-space-size=512` limits old-space only, not
 total memory), and the listener `0.0.0.0:3000` published only on `127.0.0.1:3001`. The
 read-only root filesystem and these limits are applied by the run command above; the image does
-not enforce them itself. The only load check planned is slice 5's 5-minute local-Docker smoke;
-its result belongs in `RESOURCE_TESTS.md`, and this file does not restate it. The spec §8
-20-minute resource gate was **not** run: NOT VERIFIED.
+not enforce them itself. The only load check is slice 5's 5-minute local-Docker smoke, which ran
+on 2026-09-23; its result is in `RESOURCE_TESTS.md`, and this file does not restate it. The spec
+§8 20-minute resource gate was **not** run: NOT VERIFIED.
 
 ## Health checks
 
 - `GET /health/live`: process only; no database, no session. `200 {"status":"ok"}`.
 - `GET /health/ready`: the pool reaches the database over TLS, `schema_migrations` contains
-  `0001_init`, and the `settings` singleton exists (i.e. `bootstrap` has run). `200
+  the newest migration this image ships (`0002_tighten_grants`), and the `settings` singleton
+  exists (i.e. `bootstrap` has run). `200
   {"status":"ready"}`, otherwise `503 {"status":"not_ready"}`, with the same body for every cause
   and no SQLSTATE, host, role or migration list. A five-variable configuration error is raised
   outside that check and surfaces as a generic server error, not as `503` (known, deferred).
@@ -139,7 +145,8 @@ certificate covers `localhost` and `host.docker.internal`.
 | Port | `3000` inside the container, bound on `0.0.0.0`; plain HTTP; keep it private behind the TLS-terminating ingress |
 | Environment | `DB_SERVER`, `DB_PORT` (optional), `DB_USER`, `DB_PASSWORD`, `DB_NAME`, and nothing else |
 | Order | `migrate` (owner role) -> `bootstrap` once, with the public `https://` origin (owner role) -> serve (runtime role) |
-| Health | `GET /health/live`, `GET /health/ready` |
+| Health | `GET /health/live`, `GET /health/ready` (`503` until the newest migration is applied) |
+| Ingress | TLS-terminating; forwards the public hostname as `Host` (mutations with any other `Host` get `403`) |
 | Envelope | 0.5 CPU, 1 GiB, no swap, read-only root filesystem, no volumes |
 | State | All durable state is in the database; the container can be deleted and recreated |
 
