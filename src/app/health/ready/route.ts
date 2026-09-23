@@ -4,7 +4,8 @@
  *
  * Three checks, one round trip each, all through the runtime role's own grants:
  *   1. `SELECT 1`                          - the pool can reach the database over TLS;
- *   2. `schema_migrations` contains `0001_init` - migrations have been applied;
+ *   2. `schema_migrations` contains `REQUIRED_MIGRATION_ID`, the **newest** migration file this
+ *      build ships - every migration has been applied, not just the first one;
  *   3. `settings` has its singleton row    - `manage bootstrap` has run.
  *
  * Any failure is `503` with the **same** body shape and no internals: no SQLSTATE, no host, no
@@ -16,8 +17,13 @@ import { jsonResponse } from "../../../server/http/response.ts";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** The migration this build requires. A newer database is fine; an older one is not ready. */
-export const REQUIRED_MIGRATION_ID = "0001_init";
+/**
+ * The newest file under `migrations/`: a database that has not journalled it is not ready. A
+ * newer database is fine; an older one is not. A constant rather than a directory listing, so
+ * the polled health check never touches the filesystem; `tests/unit/migrate-role.test.ts`
+ * fails the build if a new migration lands without this being bumped.
+ */
+export const REQUIRED_MIGRATION_ID = "0002_tighten_grants";
 
 export async function readiness(pool = getPool()): Promise<{ ready: boolean }> {
   try {
@@ -40,7 +46,12 @@ export async function readiness(pool = getPool()): Promise<{ ready: boolean }> {
   }
 }
 
-export async function GET(): Promise<Response> {
-  const { ready } = await readiness();
+/** The HTTP answer for a given pool; `GET` uses the process pool, tests pass their own. */
+export async function readinessResponse(pool = getPool()): Promise<Response> {
+  const { ready } = await readiness(pool);
   return ready ? jsonResponse(200, { status: "ready" }) : jsonResponse(503, { status: "not_ready" });
+}
+
+export async function GET(): Promise<Response> {
+  return readinessResponse();
 }

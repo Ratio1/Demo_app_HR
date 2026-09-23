@@ -6,7 +6,7 @@ import { APP_ENV_FILE, DROP_ALL_TABLES, OWNER_ENV_FILE, testConfig } from "./hel
 import { handleLogin } from "../../src/app/api/login/route.ts";
 import { handleLogout } from "../../src/app/api/logout/route.ts";
 import { handlePasswordChange } from "../../src/app/api/password/route.ts";
-import { readiness } from "../../src/app/health/ready/route.ts";
+import { REQUIRED_MIGRATION_ID, readiness, readinessResponse } from "../../src/app/health/ready/route.ts";
 import { GET as healthLive } from "../../src/app/health/live/route.ts";
 import { LOGIN_CSRF_COOKIE_NAME, SESSION_COOKIE_NAME } from "../../src/shared/cookies.ts";
 import { loadPrincipal } from "../../src/server/auth/session.ts";
@@ -601,6 +601,36 @@ describe("health endpoints (spec §8)", () => {
       await client.query("DELETE FROM settings");
     });
     expect(await readiness(appPool)).toEqual({ ready: false });
+  });
+
+  it("/health/ready answers 503 when the journal lacks the newest migration (slice 5 R, I-1)", async () => {
+    expect(REQUIRED_MIGRATION_ID).toBe("0002_tighten_grants");
+    const ready = await readinessResponse(appPool);
+    expect(ready.status).toBe(200);
+    expect(await ready.json()).toEqual({ status: "ready" });
+
+    // The journal now holds 0001 only, as a database migrated by an older image would.
+    await withClient(ownerPool, async (client) => {
+      await client.query("DELETE FROM schema_migrations WHERE id = $1", [REQUIRED_MIGRATION_ID]);
+    });
+    try {
+      const journal = await withClient(ownerPool, async (client) =>
+        client.query<{ id: string }>("SELECT id FROM schema_migrations ORDER BY id"),
+      );
+      expect(journal.rows.map((row) => row.id)).toEqual(["0001_init"]);
+
+      const response = await readinessResponse(appPool);
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ status: "not_ready" });
+      expect(response.headers.get("Cache-Control")).toContain("no-store");
+    } finally {
+      await withClient(ownerPool, async (client) => {
+        await client.query("INSERT INTO schema_migrations (id, applied_at) VALUES ($1, now())", [
+          REQUIRED_MIGRATION_ID,
+        ]);
+      });
+    }
+    expect(await readiness(appPool)).toEqual({ ready: true });
   });
 
   it("/health/ready discloses nothing when the database is unreachable", async () => {

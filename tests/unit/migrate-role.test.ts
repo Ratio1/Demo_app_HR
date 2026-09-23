@@ -8,6 +8,7 @@ import {
   listMigrationFiles,
   quoteIdentifier,
 } from "../../src/server/db/migrate.js";
+import { REQUIRED_MIGRATION_ID } from "../../src/app/health/ready/route.js";
 
 describe("runtime role derivation", () => {
   it("turns the maintenance role into the runtime role", () => {
@@ -53,6 +54,14 @@ describe("migration files", () => {
     const files = listMigrationFiles();
     expect(files.map((file) => file.id)).toContain("0001_init");
     expect(files.map((file) => file.id)).toEqual([...files.map((file) => file.id)].sort());
+  });
+
+  it("makes /health/ready require the newest migration file, not just the first (slice 5 R, I-1)", () => {
+    // A new migration file without a bumped constant would let a half-migrated database report
+    // `ready`; this is the ratchet that stops it.
+    const newest = listMigrationFiles().at(-1)?.id;
+    expect(newest).toBeDefined();
+    expect(REQUIRED_MIGRATION_ID).toBe(newest);
   });
 
   it("names no role literally and uses the placeholder for every grant", () => {
